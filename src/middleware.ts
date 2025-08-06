@@ -1,14 +1,43 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  let res = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            req.cookies.set(name, value)
+          );
+          res = NextResponse.next({
+            request: {
+              headers: req.headers,
+            },
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
 
   // Refresh session if expired - required for Server Components
   const {
     data: { session },
+    error,
   } = await supabase.auth.getSession();
 
   // Protected routes
@@ -22,6 +51,14 @@ export async function middleware(req: NextRequest) {
   const isAuthRoute = authRoutes.some(route =>
     req.nextUrl.pathname.startsWith(route)
   );
+
+  // Handle session errors
+  if (error) {
+    console.error('Middleware auth error:', error);
+    // Clear potentially corrupted session
+    const redirectUrl = new URL('/login', req.url);
+    return NextResponse.redirect(redirectUrl);
+  }
 
   if (isProtectedRoute && !session) {
     const redirectUrl = new URL('/login', req.url);
@@ -45,8 +82,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * - API routes (they have their own protection)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
