@@ -34,11 +34,26 @@ export async function middleware(req: NextRequest) {
     }
   );
 
+  // Skip auth check for callback routes
+  const isAuthCallback = req.nextUrl.pathname.startsWith('/auth/callback');
+
+  if (isAuthCallback) {
+    return res;
+  }
+
   // Refresh session if expired - required for Server Components
   const {
     data: { session },
     error,
   } = await supabase.auth.getSession();
+
+  // Handle session errors
+  if (error) {
+    console.error('Middleware auth error:', error);
+    // Clear potentially corrupted session
+    const redirectUrl = new URL('/login', req.url);
+    return NextResponse.redirect(redirectUrl);
+  }
 
   // Protected routes
   const protectedRoutes = ['/dashboard'];
@@ -52,14 +67,6 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith(route)
   );
 
-  // Handle session errors
-  if (error) {
-    console.error('Middleware auth error:', error);
-    // Clear potentially corrupted session
-    const redirectUrl = new URL('/login', req.url);
-    return NextResponse.redirect(redirectUrl);
-  }
-
   if (isProtectedRoute && !session) {
     const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
@@ -69,6 +76,12 @@ export async function middleware(req: NextRequest) {
   if (isAuthRoute && session) {
     const redirectTo =
       req.nextUrl.searchParams.get('redirectTo') || '/dashboard';
+
+    // ป้องกัน redirect loop
+    if (req.nextUrl.pathname === '/login' && redirectTo === '/dashboard') {
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
     return NextResponse.redirect(new URL(redirectTo, req.url));
   }
 

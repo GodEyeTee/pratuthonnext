@@ -1,7 +1,7 @@
 'use client';
 
-import { useErrorHandler } from '@/components/ErrorBoundary';
-import { signOut } from '@/lib/auth-utils';
+import { signOut } from '@/lib/auth-client';
+import { captureError } from '@/lib/sentry-utils';
 import { useState } from 'react';
 
 interface LogoutButtonProps {
@@ -26,7 +26,6 @@ export default function LogoutButton({
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const handleError = useErrorHandler();
 
   const handleLogout = async () => {
     if (loading) return;
@@ -58,7 +57,7 @@ export default function LogoutButton({
 
       setError(errorMessage);
       onError?.(errorMessage);
-      handleError(error, { context: 'LogoutButton' });
+      captureError(error, { context: 'LogoutButton' });
     } finally {
       setLoading(false);
     }
@@ -180,48 +179,5 @@ export default function LogoutButton({
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Simple logout link for navigation
- */
-export function LogoutLink({
-  className = '',
-  onSuccess,
-  onError,
-}: Pick<LogoutButtonProps, 'className' | 'onSuccess' | 'onError'>) {
-  const [loading, setLoading] = useState(false);
-  const handleError = useErrorHandler();
-
-  const handleClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-
-    if (loading) return;
-
-    setLoading(true);
-    try {
-      const result = await signOut();
-      if (result.error) {
-        onError?.(result.error);
-      } else {
-        onSuccess?.();
-      }
-    } catch (err) {
-      handleError(err as Error);
-      onError?.('เกิดข้อผิดพลาด');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <a
-      href="#"
-      onClick={handleClick}
-      className={`text-red-600 hover:text-red-800 hover:underline ${className}`}
-    >
-      {loading ? 'กำลังออก...' : 'ออกจากระบบ'}
-    </a>
   );
 }

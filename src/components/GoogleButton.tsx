@@ -1,7 +1,7 @@
 'use client';
 
-import { useErrorHandler } from '@/components/ErrorBoundary';
-import { signInWithGoogle } from '@/lib/auth-utils';
+import { signInWithGoogle } from '@/lib/auth-client';
+import { captureError } from '@/lib/sentry-utils';
 import { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 
@@ -22,7 +22,6 @@ export default function GoogleButton({
 }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const handleError = useErrorHandler();
 
   const handleGoogleLogin = async () => {
     if (loading || disabled) return;
@@ -47,7 +46,7 @@ export default function GoogleButton({
 
       setError(errorMessage);
       onError?.(errorMessage);
-      handleError(error, { context: 'GoogleButton' });
+      captureError(error, { context: 'GoogleButton' });
     } finally {
       setLoading(false);
     }
@@ -119,63 +118,8 @@ export default function GoogleButton({
 
       {/* ✅ Help text */}
       <p className="text-xs text-gray-500 text-center">
-        การล็อกอินแสดงว่าคุณยอมรับ{' '}
-        <a href="/terms" className="underline hover:no-underline">
-          เงื่อนไขการใช้งาน
-        </a>{' '}
-        และ{' '}
-        <a href="/privacy" className="underline hover:no-underline">
-          นโยบายความเป็นส่วนตัว
-        </a>
+        การล็อกอินแสดงว่าคุณยอมรับเงื่อนไขการใช้งาน
       </p>
     </div>
-  );
-}
-
-/**
- * Compact version for navigation or small spaces
- */
-export function GoogleButtonCompact({
-  redirectTo,
-  disabled = false,
-  onSuccess,
-  onError,
-}: Omit<GoogleButtonProps, 'className'>) {
-  const [loading, setLoading] = useState(false);
-  const handleError = useErrorHandler();
-
-  const handleClick = async () => {
-    if (loading || disabled) return;
-
-    setLoading(true);
-    try {
-      const result = await signInWithGoogle(redirectTo);
-      if (result.error) {
-        onError?.(result.error);
-      } else {
-        onSuccess?.();
-      }
-    } catch (err) {
-      handleError(err as Error);
-      onError?.('เกิดข้อผิดพลาด');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={loading || disabled}
-      className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-      title="ล็อกอินด้วย Google"
-    >
-      {loading ? (
-        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-      ) : (
-        <FcGoogle className="w-4 h-4" />
-      )}
-      <span className="ml-2 hidden sm:inline">Google</span>
-    </button>
   );
 }
