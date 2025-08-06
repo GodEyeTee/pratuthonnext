@@ -23,7 +23,7 @@
 ### ขั้นตอนที่ 1: Clone หรือดาวน์โหลดโปรเจกต์
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/GodEyeTee/pratuthonnext.git
 cd pratuthong
 npm install
 ```
