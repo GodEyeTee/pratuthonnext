@@ -4,7 +4,7 @@ import { useState, useEffect, useContext, createContext } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import type { User, Session } from '@supabase/supabase-js';
 import type { UserRole, Permission, UserWithRole } from '@/types/rbac';
-import { hasPermission, hasAnyPermission, hasAllPermissions } from '@/constants/rbac';
+import { hasPermission, hasAnyPermission, hasAllPermissions } from '@/lib/rbac.config';
 import { setUserContext, clearUserContext } from '@/lib/utils/sentry';
 
 // Auth Context Types

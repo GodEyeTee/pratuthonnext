@@ -2,9 +2,9 @@
  * API Routes for User Management (Admin Only)
  */
 
-import { canManageRole } from '@/constants/rbac';
-import { createClient } from '@/lib/auth';
-import { createAuditLog, withRBACProtection } from '@/lib/rbac/middleware';
+import { createClient } from '@/lib/auth.server';
+import { canManageRole } from '@/lib/rbac.config';
+import { createAuditLog, withRBACProtection } from '@/lib/rbac.middleware';
 import type { UserRole } from '@/types/rbac';
 import { NextRequest, NextResponse } from 'next/server';
 

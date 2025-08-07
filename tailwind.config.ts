@@ -150,18 +150,10 @@ const config: Config = {
           css: {
             maxWidth: '65ch',
             color: 'hsl(var(--foreground))',
-            h1: {
-              color: 'hsl(var(--foreground))',
-            },
-            h2: {
-              color: 'hsl(var(--foreground))',
-            },
-            h3: {
-              color: 'hsl(var(--foreground))',
-            },
-            h4: {
-              color: 'hsl(var(--foreground))',
-            },
+            h1: { color: 'hsl(var(--foreground))' },
+            h2: { color: 'hsl(var(--foreground))' },
+            h3: { color: 'hsl(var(--foreground))' },
+            h4: { color: 'hsl(var(--foreground))' },
             code: {
               color: 'hsl(var(--primary))',
               backgroundColor: 'hsl(var(--muted))',
@@ -172,12 +164,8 @@ const config: Config = {
               borderRadius: '0.25rem',
               fontWeight: '400',
             },
-            'code::before': {
-              content: '""',
-            },
-            'code::after': {
-              content: '""',
-            },
+            'code::before': { content: '""' },
+            'code::after': { content: '""' },
           },
         },
       },
@@ -186,30 +174,35 @@ const config: Config = {
   plugins: [
     require('@tailwindcss/typography'),
     require('@tailwindcss/forms'),
-    require('@tailwindcss/aspect-ratio'),
-    // Custom plugin for RBAC utilities
-    function ({ addUtilities, theme }) {
-      const roleColors = theme('colors.role');
-      const roleUtilities = {};
+
+    // Custom plugin for RBAC utilities with proper typing
+    function ({
+      addUtilities,
+      theme,
+    }: {
+      addUtilities: (utilities: Record<string, any>) => void;
+      theme: (path: string) => any;
+    }) {
+      const roleColors = theme('colors.role') as Record<string, string>;
+      const roleUtilities: Record<string, any> = {};
 
       Object.entries(roleColors).forEach(([role, color]) => {
-        roleUtilities[`.role-${role}`] = {
-          color: color,
-        };
-        roleUtilities[`.bg-role-${role}`] = {
-          backgroundColor: color,
-        };
-        roleUtilities[`.border-role-${role}`] = {
-          borderColor: color,
-        };
+        roleUtilities[`.role-${role}`] = { color: color };
+        roleUtilities[`.bg-role-${role}`] = { backgroundColor: color };
+        roleUtilities[`.border-role-${role}`] = { borderColor: color };
       });
 
       addUtilities(roleUtilities);
     },
-    // Custom plugin for semantic states
-    function ({ addUtilities, theme }) {
+
+    // Custom plugin for semantic states with proper typing
+    function ({
+      addUtilities,
+    }: {
+      addUtilities: (utilities: Record<string, any>) => void;
+    }) {
       const semanticColors = ['success', 'warning', 'error', 'info'];
-      const semanticUtilities = {};
+      const semanticUtilities: Record<string, any> = {};
 
       semanticColors.forEach(state => {
         semanticUtilities[`.alert-${state}`] = {
@@ -220,6 +213,23 @@ const config: Config = {
       });
 
       addUtilities(semanticUtilities);
+    },
+
+    // Native CSS aspect-ratio support (replaces @tailwindcss/aspect-ratio)
+    function ({
+      addUtilities,
+    }: {
+      addUtilities: (utilities: Record<string, any>) => void;
+    }) {
+      const aspectRatios: Record<string, any> = {
+        '.aspect-square': { aspectRatio: '1 / 1' },
+        '.aspect-video': { aspectRatio: '16 / 9' },
+        '.aspect-4-3': { aspectRatio: '4 / 3' },
+        '.aspect-3-2': { aspectRatio: '3 / 2' },
+        '.aspect-golden': { aspectRatio: '1.618 / 1' },
+      };
+
+      addUtilities(aspectRatios);
     },
   ],
 };

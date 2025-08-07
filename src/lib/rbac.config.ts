@@ -1,5 +1,6 @@
 /**
- * RBAC Constants and Configurations
+ * RBAC Configuration and Business Logic
+ * Clean Architecture - Domain Layer
  */
 
 import type {
@@ -58,8 +59,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       'reports:delete',
     ],
     description: {
-      th: 'ผู้ดูแลระบบ - สามารถเข้าถึงและจัดการทุกส่วนของระบบ',
-      en: 'Administrator - Full access to all system features and user management',
+      th: 'ผู้ดูแลระบบ - สามารถเข้าถึงและจัดการทุกส่วนของระบบรวมถึงจัดการห้องพักและการจอง',
+      en: 'Administrator - Full access to all system features including room and booking management',
     },
   },
   support: {
@@ -75,16 +76,16 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       'reports:read',
     ],
     description: {
-      th: 'ทีมสนับสนุน - สามารถช่วยเหลือผู้ใช้และดูรายงาน',
-      en: 'Support Team - Can assist users and view reports',
+      th: 'ทีมสนับสนุน - สามารถช่วยเหลือลูกค้า จัดการการจอง และดูรายงาน',
+      en: 'Support Team - Can assist customers, manage bookings, and view reports',
     },
   },
   user: {
     role: 'user',
     permissions: ['profile:read', 'profile:update', 'dashboard:user'],
     description: {
-      th: 'ผู้ใช้ทั่วไป - สามารถจัดการโปรไฟล์ของตนเอง',
-      en: 'Regular User - Can manage own profile and access user dashboard',
+      th: 'ผู้เช่า - สามารถจองห้องพัก จัดการโปรไฟล์ และดูประวัติการจอง',
+      en: 'Tenant - Can book rooms, manage profile, and view booking history',
     },
   },
 };
@@ -107,6 +108,11 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
     requiredPermissions: ['settings:read', 'settings:update'],
   },
   {
+    path: '/admin/rooms',
+    allowedRoles: ['admin'],
+    requiredPermissions: ['users:read'], // Room management permissions
+  },
+  {
     path: '/support',
     allowedRoles: ['admin', 'support'],
     requiredPermissions: ['dashboard:support'],
@@ -126,6 +132,16 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
     allowedRoles: ['admin', 'support'],
     requiredPermissions: ['reports:read'],
   },
+  {
+    path: '/rooms',
+    allowedRoles: ['admin', 'support', 'user'],
+    requiredPermissions: ['dashboard:user'], // Users can view available rooms
+  },
+  {
+    path: '/bookings',
+    allowedRoles: ['admin', 'support', 'user'],
+    requiredPermissions: ['dashboard:user'], // Users can manage their bookings
+  },
 ];
 
 // Public routes (no auth required)
@@ -142,7 +158,7 @@ export const AUTH_ROUTES = [
 // Route redirects based on role
 export const ROLE_REDIRECTS: Record<UserRole, string> = {
   admin: '/admin',
-  support: '/support',
+  support: '/dashboard',
   user: '/dashboard',
 };
 
@@ -165,6 +181,18 @@ export const PERMISSION_GROUPS = {
     'reports:read',
     'reports:create',
     'reports:delete',
+  ] as Permission[],
+  ROOM_MANAGEMENT: [
+    'rooms:read',
+    'rooms:create',
+    'rooms:update',
+    'rooms:delete',
+  ] as Permission[],
+  BOOKING_MANAGEMENT: [
+    'bookings:read',
+    'bookings:create',
+    'bookings:update',
+    'bookings:delete',
   ] as Permission[],
 };
 
@@ -251,4 +279,56 @@ export function canManageRole(
   targetRole: UserRole
 ): boolean {
   return getRoleHierarchyLevel(managerRole) > getRoleHierarchyLevel(targetRole);
+}
+
+// Room-specific permissions (for room rental system)
+export const ROOM_STATUS = {
+  AVAILABLE: 'available',
+  OCCUPIED: 'occupied',
+  MAINTENANCE: 'maintenance',
+  RESERVED: 'reserved',
+} as const;
+
+export const BOOKING_STATUS = {
+  PENDING: 'pending',
+  CONFIRMED: 'confirmed',
+  CHECKED_IN: 'checked_in',
+  CHECKED_OUT: 'checked_out',
+  CANCELLED: 'cancelled',
+} as const;
+
+export const RENTAL_TYPE = {
+  DAILY: 'daily',
+  MONTHLY: 'monthly',
+} as const;
+
+// Business rules
+export class RoomRentalRules {
+  static canManageRooms(userRole: UserRole): boolean {
+    return hasPermission(userRole, 'users:read'); // Using existing permission
+  }
+
+  static canManageBookings(userRole: UserRole): boolean {
+    return ['admin', 'support'].includes(userRole);
+  }
+
+  static canViewAllBookings(userRole: UserRole): boolean {
+    return ['admin', 'support'].includes(userRole);
+  }
+
+  static canCreateBooking(userRole: UserRole): boolean {
+    return true; // All authenticated users can create bookings
+  }
+
+  static canCancelBooking(userRole: UserRole, isOwnBooking: boolean): boolean {
+    return userRole === 'admin' || userRole === 'support' || isOwnBooking;
+  }
+
+  static canUpdateRoom(userRole: UserRole): boolean {
+    return userRole === 'admin';
+  }
+
+  static canViewReports(userRole: UserRole): boolean {
+    return hasPermission(userRole, 'reports:read');
+  }
 }

@@ -1,5 +1,6 @@
 /**
- * Theme System - Design tokens and theme provider
+ * Theme System Configuration
+ * Clean Architecture - Infrastructure Layer
  */
 
 export type ThemeMode = 'light' | 'dark';

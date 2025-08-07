@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { Locale, TranslationNamespace } from '@/locales';
-import { getTranslations, createTranslationFunction, DEFAULT_LOCALE, AVAILABLE_LOCALES } from '@/locales';
+import type { Locale, TranslationNamespace } from '@/lib/i18n.config';
+import { getTranslations, createTranslationFunction, DEFAULT_LOCALE, AVAILABLE_LOCALES } from '@/lib/i18n.config';
 
 // Locale Context Types
 interface LocaleContextType {
@@ -65,7 +65,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     
     // Update document attributes
     document.documentElement.lang = storedLocale;
-    document.documentElement.dir = storedLocale === 'ar' ? 'rtl' : 'ltr'; // Future RTL support
+    document.documentElement.dir = 'ltr'; // For future RTL support
   }, []);
 
   // Update locale
@@ -81,13 +81,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     
     // Update document attributes
     document.documentElement.lang = newLocale;
-    document.documentElement.dir = newLocale === 'ar' ? 'rtl' : 'ltr'; // Future RTL support
+    document.documentElement.dir = 'ltr'; // For future RTL support
   };
 
   // Create translation function
   const t = createTranslationFunction(locale);
 
-  // RTL support (for future Arabic/Hebrew support)
+  // RTL support (for future use)
   const isRTL = false; // Set to true for RTL languages
   const direction = isRTL ? 'rtl' : 'ltr';
 

@@ -1,5 +1,6 @@
 /**
- * Internationalization (i18n) System
+ * Internationalization (i18n) Configuration
+ * Clean Architecture - Infrastructure Layer
  */
 
 export type Locale = 'th' | 'en';
@@ -61,6 +62,9 @@ export interface TranslationNamespace {
     reports: string;
     help: string;
     about: string;
+    rooms: string;
+    bookings: string;
+    payments: string;
   };
 
   roles: {
@@ -82,6 +86,10 @@ export interface TranslationNamespace {
     activeUsers: string;
     newUsers: string;
     systemHealth: string;
+    totalRooms: string;
+    availableRooms: string;
+    occupiedRooms: string;
+    monthlyRevenue: string;
   };
 
   profile: {
@@ -97,6 +105,38 @@ export interface TranslationNamespace {
     deleteAccount: string;
     profileUpdated: string;
     profileUpdateError: string;
+  };
+
+  rooms: {
+    title: string;
+    roomList: string;
+    addRoom: string;
+    editRoom: string;
+    deleteRoom: string;
+    roomNumber: string;
+    roomType: string;
+    status: string;
+    dailyRate: string;
+    monthlyRate: string;
+    available: string;
+    occupied: string;
+    maintenance: string;
+    roomDetails: string;
+  };
+
+  bookings: {
+    title: string;
+    bookingList: string;
+    newBooking: string;
+    checkIn: string;
+    checkOut: string;
+    guest: string;
+    duration: string;
+    totalAmount: string;
+    status: string;
+    confirmed: string;
+    cancelled: string;
+    completed: string;
   };
 
   users: {
@@ -134,6 +174,10 @@ export interface TranslationNamespace {
     passwordsNotMatch: string;
     invalidFormat: string;
     fieldRequired: string;
+    positiveNumber: string;
+    invalidPhone: string;
+    dateInFuture: string;
+    dateInPast: string;
   };
 }
 
@@ -195,6 +239,9 @@ export const th: TranslationNamespace = {
     reports: 'รายงาน',
     help: 'ช่วยเหลือ',
     about: 'เกี่ยวกับเรา',
+    rooms: 'ห้องพัก',
+    bookings: 'การจอง',
+    payments: 'การชำระเงิน',
   },
 
   roles: {
@@ -203,7 +250,7 @@ export const th: TranslationNamespace = {
     user: 'ผู้ใช้งาน',
     adminDescription: 'สามารถจัดการระบบและผู้ใช้ทั้งหมด',
     supportDescription: 'สามารถช่วยเหลือผู้ใช้และดูรายงาน',
-    userDescription: 'สามารถจัดการโปรไฟล์ของตนเอง',
+    userDescription: 'สามารถจองห้องและจัดการโปรไฟล์ของตนเอง',
   },
 
   dashboard: {
@@ -216,6 +263,10 @@ export const th: TranslationNamespace = {
     activeUsers: 'ผู้ใช้ที่ใช้งานอยู่',
     newUsers: 'ผู้ใช้ใหม่',
     systemHealth: 'สถานะระบบ',
+    totalRooms: 'ห้องทั้งหมด',
+    availableRooms: 'ห้องว่าง',
+    occupiedRooms: 'ห้องที่ใช้งานอยู่',
+    monthlyRevenue: 'รายได้ประจำเดือน',
   },
 
   profile: {
@@ -231,6 +282,38 @@ export const th: TranslationNamespace = {
     deleteAccount: 'ลบบัญชี',
     profileUpdated: 'อัปเดตโปรไฟล์สำเร็จ',
     profileUpdateError: 'ไม่สามารถอัปเดตโปรไฟล์ได้',
+  },
+
+  rooms: {
+    title: 'จัดการห้องพัก',
+    roomList: 'รายชื่อห้อง',
+    addRoom: 'เพิ่มห้อง',
+    editRoom: 'แก้ไขห้อง',
+    deleteRoom: 'ลบห้อง',
+    roomNumber: 'หมายเลขห้อง',
+    roomType: 'ประเภทห้อง',
+    status: 'สถานะ',
+    dailyRate: 'ราคารายวัน',
+    monthlyRate: 'ราคารายเดือน',
+    available: 'ว่าง',
+    occupied: 'ถูกใช้งาน',
+    maintenance: 'ปรับปรุง',
+    roomDetails: 'รายละเอียดห้อง',
+  },
+
+  bookings: {
+    title: 'จัดการการจอง',
+    bookingList: 'รายการจอง',
+    newBooking: 'จองใหม่',
+    checkIn: 'เช็คอิน',
+    checkOut: 'เช็คเอาท์',
+    guest: 'ผู้เข้าพัก',
+    duration: 'ระยะเวลา',
+    totalAmount: 'จำนวนเงินรวม',
+    status: 'สถานะ',
+    confirmed: 'ยืนยันแล้ว',
+    cancelled: 'ยกเลิกแล้ว',
+    completed: 'เสร็จสิ้นแล้ว',
   },
 
   users: {
@@ -268,6 +351,10 @@ export const th: TranslationNamespace = {
     passwordsNotMatch: 'รหัสผ่านไม่ตรงกัน',
     invalidFormat: 'รูปแบบไม่ถูกต้อง',
     fieldRequired: 'กรุณากรอกข้อมูลในฟิลด์นี้',
+    positiveNumber: 'กรุณากรอกตัวเลขที่มากกว่า 0',
+    invalidPhone: 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง',
+    dateInFuture: 'วันที่ต้องเป็นอนาคต',
+    dateInPast: 'วันที่ต้องเป็นอดีต',
   },
 };
 
@@ -329,6 +416,9 @@ export const en: TranslationNamespace = {
     reports: 'Reports',
     help: 'Help',
     about: 'About',
+    rooms: 'Rooms',
+    bookings: 'Bookings',
+    payments: 'Payments',
   },
 
   roles: {
@@ -337,7 +427,7 @@ export const en: TranslationNamespace = {
     user: 'User',
     adminDescription: 'Full access to all system features and user management',
     supportDescription: 'Can assist users and view reports',
-    userDescription: 'Can manage own profile and access user dashboard',
+    userDescription: 'Can make bookings and manage own profile',
   },
 
   dashboard: {
@@ -350,6 +440,10 @@ export const en: TranslationNamespace = {
     activeUsers: 'Active Users',
     newUsers: 'New Users',
     systemHealth: 'System Health',
+    totalRooms: 'Total Rooms',
+    availableRooms: 'Available Rooms',
+    occupiedRooms: 'Occupied Rooms',
+    monthlyRevenue: 'Monthly Revenue',
   },
 
   profile: {
@@ -365,6 +459,38 @@ export const en: TranslationNamespace = {
     deleteAccount: 'Delete Account',
     profileUpdated: 'Profile updated successfully',
     profileUpdateError: 'Unable to update profile',
+  },
+
+  rooms: {
+    title: 'Room Management',
+    roomList: 'Room List',
+    addRoom: 'Add Room',
+    editRoom: 'Edit Room',
+    deleteRoom: 'Delete Room',
+    roomNumber: 'Room Number',
+    roomType: 'Room Type',
+    status: 'Status',
+    dailyRate: 'Daily Rate',
+    monthlyRate: 'Monthly Rate',
+    available: 'Available',
+    occupied: 'Occupied',
+    maintenance: 'Maintenance',
+    roomDetails: 'Room Details',
+  },
+
+  bookings: {
+    title: 'Booking Management',
+    bookingList: 'Booking List',
+    newBooking: 'New Booking',
+    checkIn: 'Check In',
+    checkOut: 'Check Out',
+    guest: 'Guest',
+    duration: 'Duration',
+    totalAmount: 'Total Amount',
+    status: 'Status',
+    confirmed: 'Confirmed',
+    cancelled: 'Cancelled',
+    completed: 'Completed',
   },
 
   users: {
@@ -402,6 +528,10 @@ export const en: TranslationNamespace = {
     passwordsNotMatch: 'Passwords do not match',
     invalidFormat: 'Invalid format',
     fieldRequired: 'Please fill in this field',
+    positiveNumber: 'Please enter a positive number',
+    invalidPhone: 'Invalid phone number format',
+    dateInFuture: 'Date must be in the future',
+    dateInPast: 'Date must be in the past',
   },
 };
 

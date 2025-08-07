@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/auth';
+import { getUser } from '@/lib/auth.server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 

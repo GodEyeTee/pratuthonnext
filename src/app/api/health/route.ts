@@ -3,8 +3,8 @@
  * Used by Docker healthcheck and monitoring systems
  */
 
-import { createClient } from '@/lib/auth';
-import { env, getAppConfig } from '@/lib/env/validation';
+import { createClient } from '@/lib/auth.server';
+import { env, getAppConfig } from '@/lib/env.validation';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';

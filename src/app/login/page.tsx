@@ -2,11 +2,11 @@
 
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { ROLE_REDIRECTS } from '@/constants/rbac';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useLocale';
 import { useNotifications } from '@/hooks/useToast';
-import { signInWithGoogle } from '@/lib/auth-client';
+import { signInWithGoogle } from '@/lib/auth.client';
+import { ROLE_REDIRECTS } from '@/lib/rbac.config';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { FcGoogle } from 'react-icons/fc';

@@ -2,8 +2,8 @@
  * API Route for Dashboard Statistics
  */
 
-import { createClient } from '@/lib/auth';
-import { withRBACProtection } from '@/lib/rbac/middleware';
+import { createClient } from '@/lib/auth.server';
+import { withRBACProtection } from '@/lib/rbac.middleware';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/dashboard/stats - Get dashboard statistics

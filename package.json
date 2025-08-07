@@ -1,6 +1,8 @@
 {
   "name": "pratuthong",
   "version": "0.1.0",
+  "description": "Room Rental Management System with RBAC",
+  "author": "GodEyeTee",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

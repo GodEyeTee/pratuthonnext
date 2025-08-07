@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { ThemeMode, Theme } from '@/styles/themes';
-import { getTheme, createCSSVariables, lightTheme, darkTheme } from '@/styles/themes';
+import type { ThemeMode, Theme } from '@/lib/theme.config';
+import { getTheme, createCSSVariables, lightTheme, darkTheme } from '@/lib/theme.config';
 
 // Theme Context Types
 interface ThemeContextType {
@@ -203,23 +203,6 @@ export function useSemanticColors() {
     borderPrimary: theme.colors.border.primary,
     borderSecondary: theme.colors.border.secondary,
     borderFocus: theme.colors.border.focus,
-  };
-}
-
-// Theme-aware component styling
-export function useThemeStyles() {
-  const { theme, isDark } = useTheme();
-  
-  return {
-    card: `bg-[${theme.colors.background.primary}] border border-[${theme.colors.border.primary}] rounded-[${theme.borderRadius.lg}] shadow-[${theme.shadow.md}]`,
-    button: {
-      primary: `bg-[${theme.colors.primary[600]}] text-[${theme.colors.text.inverse}] hover:bg-[${theme.colors.primary[700]}]`,
-      secondary: `bg-[${theme.colors.background.secondary}] text-[${theme.colors.text.primary}] border border-[${theme.colors.border.primary}] hover:bg-[${theme.colors.background.tertiary}]`,
-      ghost: `text-[${theme.colors.text.primary}] hover:bg-[${theme.colors.background.secondary}]`,
-    },
-    input: `bg-[${theme.colors.background.primary}] border border-[${theme.colors.border.primary}] text-[${theme.colors.text.primary}] focus:border-[${theme.colors.border.focus}] rounded-[${theme.borderRadius.md}]`,
-    modal: `bg-[${theme.colors.background.primary}] border border-[${theme.colors.border.primary}] rounded-[${theme.borderRadius.lg}] shadow-[${theme.shadow.xl}]`,
-    tooltip: `bg-[${isDark ? theme.colors.background.tertiary : theme.colors.text.primary}] text-[${isDark ? theme.colors.text.primary : theme.colors.text.inverse}] rounded-[${theme.borderRadius.md}] shadow-[${theme.shadow.lg}]`,
   };
 }
 

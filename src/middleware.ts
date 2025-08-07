@@ -3,7 +3,7 @@
  * สำหรับ Next.js 15 App Router
  */
 
-import { createRBACMiddleware } from '@/lib/rbac/middleware';
+import { createRBACMiddleware } from '@/lib/rbac.middleware';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {

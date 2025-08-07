@@ -16,10 +16,10 @@ import {
 } from '@/components/ui/Card';
 import type { NavItem } from '@/components/ui/Navbar';
 import { Navbar } from '@/components/ui/Navbar';
-import { ROLE_DISPLAY } from '@/constants/rbac';
 import { useAuth, usePermissions, useUserInfo } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useLocale';
 import { useNotifications } from '@/hooks/useToast';
+import { ROLE_DISPLAY } from '@/lib/rbac.config';
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();

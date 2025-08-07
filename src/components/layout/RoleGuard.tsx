@@ -1,10 +1,15 @@
 'use client';
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import type { UserRole, Permission, RoleGuardProps, PermissionGuardProps } from '@/types/rbac';
-import { ROLE_REDIRECTS } from '@/constants/rbac';
+import { ROLE_REDIRECTS } from '@/lib/rbac.config';
+import type {
+  Permission,
+  PermissionGuardProps,
+  RoleGuardProps,
+  UserRole,
+} from '@/types/rbac';
+import { useRouter } from 'next/navigation';
+import React from 'react';
 
 /**
  * RoleGuard - Protects components based on user roles
@@ -42,7 +47,15 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
       router.push(redirectTo);
       return null;
     }
-    return fallback || <UnauthorizedMessage type="role" userRole={user.role} allowedRoles={allowedRoles} />;
+    return (
+      fallback || (
+        <UnauthorizedMessage
+          type="role"
+          userRole={user.role}
+          allowedRoles={allowedRoles}
+        />
+      )
+    );
   }
 
   return <>{children}</>;
@@ -57,7 +70,8 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   fallback = null,
   requireAll = true,
 }) => {
-  const { user, loading, hasPermission, hasAnyPermission, hasAllPermissions } = useAuth();
+  const { user, loading, hasPermission, hasAnyPermission, hasAllPermissions } =
+    useAuth();
 
   // Show loading state
   if (loading) {
@@ -79,7 +93,14 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     : hasAnyPermission(requiredPermissions);
 
   if (!hasRequiredPermissions) {
-    return fallback || <UnauthorizedMessage type="permission" permissions={requiredPermissions} />;
+    return (
+      fallback || (
+        <UnauthorizedMessage
+          type="permission"
+          permissions={requiredPermissions}
+        />
+      )
+    );
   }
 
   return <>{children}</>;
@@ -88,10 +109,10 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 /**
  * AdminOnly - Shorthand for admin-only content
  */
-export const AdminOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({
-  children,
-  fallback,
-}) => (
+export const AdminOnly: React.FC<{
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}> = ({ children, fallback }) => (
   <RoleGuard allowedRoles={['admin']} fallback={fallback}>
     {children}
   </RoleGuard>
@@ -100,10 +121,10 @@ export const AdminOnly: React.FC<{ children: React.ReactNode; fallback?: React.R
 /**
  * SupportOrAdmin - Shorthand for support and admin content
  */
-export const SupportOrAdmin: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({
-  children,
-  fallback,
-}) => (
+export const SupportOrAdmin: React.FC<{
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}> = ({ children, fallback }) => (
   <RoleGuard allowedRoles={['admin', 'support']} fallback={fallback}>
     {children}
   </RoleGuard>
@@ -112,10 +133,10 @@ export const SupportOrAdmin: React.FC<{ children: React.ReactNode; fallback?: Re
 /**
  * AuthenticatedOnly - Shorthand for any authenticated user
  */
-export const AuthenticatedOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({
-  children,
-  fallback,
-}) => (
+export const AuthenticatedOnly: React.FC<{
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}> = ({ children, fallback }) => (
   <RoleGuard allowedRoles={['admin', 'support', 'user']} fallback={fallback}>
     {children}
   </RoleGuard>
@@ -129,11 +150,11 @@ export const ConditionalRender: React.FC<{
   children: React.ReactNode;
 }> = ({ roles, children }) => {
   const { user } = useAuth();
-  
+
   if (!user || !roles.includes(user.role)) {
     return null;
   }
-  
+
   return <>{children}</>;
 };
 
@@ -250,10 +271,10 @@ const UnauthorizedMessage: React.FC<UnauthorizedMessageProps> = ({
           />
         </svg>
       </div>
-      
+
       <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
       <p className="text-gray-600 mb-6 max-w-md">{description}</p>
-      
+
       <a
         href={actionHref}
         className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
@@ -286,7 +307,10 @@ export function withPermissionGuard<P extends object>(
 ) {
   return function ProtectedComponent(props: P) {
     return (
-      <PermissionGuard requiredPermissions={requiredPermissions} requireAll={requireAll}>
+      <PermissionGuard
+        requiredPermissions={requiredPermissions}
+        requireAll={requireAll}
+      >
         <Component {...props} />
       </PermissionGuard>
     );

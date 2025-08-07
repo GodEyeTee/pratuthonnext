@@ -5,7 +5,7 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import type { User } from '@supabase/supabase-js';
-import { captureError, clearUserContext, setUserContext } from './sentry-utils';
+import { captureError, clearUserContext, setUserContext } from './sentry.utils';
 
 // ✅ Types
 export interface AuthResult<T = any> {
