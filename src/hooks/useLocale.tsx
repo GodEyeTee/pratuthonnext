@@ -1,8 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Locale, TranslationNamespace } from '@/lib/i18n.config';
-import { getTranslations, createTranslationFunction, DEFAULT_LOCALE, AVAILABLE_LOCALES } from '@/lib/i18n.config';
+import {
+  AVAILABLE_LOCALES,
+  createTranslationFunction,
+  DEFAULT_LOCALE,
+  getTranslations,
+} from '@/lib/i18n.config';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 // Locale Context Types
 interface LocaleContextType {
@@ -23,7 +28,7 @@ const LOCALE_STORAGE_KEY = 'app-locale';
 // Get stored locale or default
 function getStoredLocale(): Locale {
   if (typeof window === 'undefined') return DEFAULT_LOCALE;
-  
+
   try {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
     if (stored && AVAILABLE_LOCALES.includes(stored as Locale)) {
@@ -32,19 +37,19 @@ function getStoredLocale(): Locale {
   } catch (error) {
     console.warn('Failed to get stored locale:', error);
   }
-  
+
   // Try to detect browser language
   const browserLang = navigator.language.toLowerCase();
   if (browserLang.startsWith('th')) return 'th';
   if (browserLang.startsWith('en')) return 'en';
-  
+
   return DEFAULT_LOCALE;
 }
 
 // Store locale preference
 function storeLocale(locale: Locale): void {
   if (typeof window === 'undefined') return;
-  
+
   try {
     localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   } catch (error) {
@@ -55,14 +60,16 @@ function storeLocale(locale: Locale): void {
 // Locale Provider Component
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-  const [translations, setTranslations] = useState<TranslationNamespace>(getTranslations(DEFAULT_LOCALE));
+  const [translations, setTranslations] = useState<TranslationNamespace>(
+    getTranslations(DEFAULT_LOCALE)
+  );
 
   // Initialize locale from storage
   useEffect(() => {
     const storedLocale = getStoredLocale();
     setLocaleState(storedLocale);
     setTranslations(getTranslations(storedLocale));
-    
+
     // Update document attributes
     document.documentElement.lang = storedLocale;
     document.documentElement.dir = 'ltr'; // For future RTL support
@@ -78,7 +85,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLocaleState(newLocale);
     setTranslations(getTranslations(newLocale));
     storeLocale(newLocale);
-    
+
     // Update document attributes
     document.documentElement.lang = newLocale;
     document.documentElement.dir = 'ltr'; // For future RTL support
@@ -101,9 +108,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <LocaleContext.Provider value={value}>
-      {children}
-    </LocaleContext.Provider>
+    <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
   );
 }
 
@@ -119,7 +124,7 @@ export function useLocale(): LocaleContextType {
 // Translation hook
 export function useTranslation() {
   const { t, locale, translations } = useLocale();
-  
+
   return {
     t,
     locale,
@@ -136,11 +141,11 @@ export function useTranslation() {
 // Language switcher hook
 export function useLanguageSwitcher() {
   const { locale, setLocale } = useLocale();
-  
+
   const switchToThai = () => setLocale('th');
   const switchToEnglish = () => setLocale('en');
   const toggleLanguage = () => setLocale(locale === 'th' ? 'en' : 'th');
-  
+
   return {
     currentLocale: locale,
     switchToThai,
@@ -155,47 +160,50 @@ export function useLanguageSwitcher() {
 // Formatting hooks
 export function useFormatting() {
   const { locale } = useLocale();
-  
-  const formatDate = (date: Date | string, options?: Intl.DateTimeFormatOptions) => {
+
+  const formatDate = (
+    date: Date | string,
+    options?: Intl.DateTimeFormatOptions
+  ) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const defaultOptions: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     };
-    
-    return new Intl.DateTimeFormat(
-      locale === 'th' ? 'th-TH' : 'en-US',
-      { ...defaultOptions, ...options }
-    ).format(dateObj);
+
+    return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-US', {
+      ...defaultOptions,
+      ...options,
+    }).format(dateObj);
   };
 
-  const formatTime = (date: Date | string, options?: Intl.DateTimeFormatOptions) => {
+  const formatTime = (
+    date: Date | string,
+    options?: Intl.DateTimeFormatOptions
+  ) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const defaultOptions: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
       minute: '2-digit',
     };
-    
-    return new Intl.DateTimeFormat(
-      locale === 'th' ? 'th-TH' : 'en-US',
-      { ...defaultOptions, ...options }
-    ).format(dateObj);
+
+    return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-US', {
+      ...defaultOptions,
+      ...options,
+    }).format(dateObj);
   };
 
   const formatDateTime = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    return new Intl.DateTimeFormat(
-      locale === 'th' ? 'th-TH' : 'en-US',
-      {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }
-    ).format(dateObj);
+
+    return new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : 'en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(dateObj);
   };
 
   const formatNumber = (number: number, options?: Intl.NumberFormatOptions) => {
@@ -206,19 +214,18 @@ export function useFormatting() {
   };
 
   const formatCurrency = (amount: number, currency = 'THB') => {
-    return new Intl.NumberFormat(
-      locale === 'th' ? 'th-TH' : 'en-US',
-      {
-        style: 'currency',
-        currency,
-      }
-    ).format(amount);
+    return new Intl.NumberFormat(locale === 'th' ? 'th-TH' : 'en-US', {
+      style: 'currency',
+      currency,
+    }).format(amount);
   };
 
   const formatRelativeTime = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
+    const diffInSeconds = Math.floor(
+      (now.getTime() - dateObj.getTime()) / 1000
+    );
 
     const rtf = new Intl.RelativeTimeFormat(
       locale === 'th' ? 'th-TH' : 'en-US',
@@ -254,18 +261,18 @@ export function useFormatting() {
 // Pluralization hook (useful for count-based messages)
 export function usePluralization() {
   const { locale } = useLocale();
-  
+
   const pluralize = (count: number, singular: string, plural?: string) => {
     if (locale === 'th') {
       // Thai doesn't have plural forms, always use singular
       return `${count} ${singular}`;
     }
-    
+
     // English pluralization
     if (count === 1) {
       return `${count} ${singular}`;
     }
-    
+
     return `${count} ${plural || `${singular}s`}`;
   };
 
@@ -273,7 +280,9 @@ export function usePluralization() {
 }
 
 // High-order component for providing locale context
-export function withLocale<P extends object>(Component: React.ComponentType<P>) {
+export function withLocale<P extends object>(
+  Component: React.ComponentType<P>
+) {
   return function LocalizedComponent(props: P) {
     return (
       <LocaleProvider>

@@ -129,9 +129,6 @@ export const POST = withRBACProtection(
 
 // PUT /api/admin/users/[id]/role - Update user role
 export async function PUT(req: NextRequest) {
-  // This would be in a separate file: src/app/api/admin/users/[id]/role/route.ts
-  // But showing the implementation here for completeness
-
   return withRBACProtection(
     async (req: NextRequest, user) => {
       try {
@@ -214,13 +211,11 @@ export async function PUT(req: NextRequest) {
       }
     },
     ['users:update']
-  )(req, user);
+  )(req);
 }
 
 // DELETE /api/admin/users/[id] - Delete user
 export async function DELETE(req: NextRequest) {
-  // This would be in a separate file: src/app/api/admin/users/[id]/route.ts
-
   return withRBACProtection(
     async (req: NextRequest, user) => {
       try {
@@ -303,5 +298,5 @@ export async function DELETE(req: NextRequest) {
       }
     },
     ['users:delete']
-  )(req, user);
+  )(req);
 }

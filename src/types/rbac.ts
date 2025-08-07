@@ -23,7 +23,17 @@ export type Permission =
   // Reports
   | 'reports:read'
   | 'reports:create'
-  | 'reports:delete';
+  | 'reports:delete'
+  // Room management
+  | 'rooms:read'
+  | 'rooms:create'
+  | 'rooms:update'
+  | 'rooms:delete'
+  // Booking management
+  | 'bookings:read'
+  | 'bookings:create'
+  | 'bookings:update'
+  | 'bookings:delete';
 
 export interface RolePermissions {
   role: UserRole;

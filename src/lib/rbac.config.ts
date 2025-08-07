@@ -36,6 +36,14 @@ export const ALL_PERMISSIONS: Permission[] = [
   'reports:read',
   'reports:create',
   'reports:delete',
+  'rooms:read',
+  'rooms:create',
+  'rooms:update',
+  'rooms:delete',
+  'bookings:read',
+  'bookings:create',
+  'bookings:update',
+  'bookings:delete',
 ];
 
 // Role-based permissions mapping
@@ -57,6 +65,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       'reports:read',
       'reports:create',
       'reports:delete',
+      'rooms:read',
+      'rooms:create',
+      'rooms:update',
+      'rooms:delete',
+      'bookings:read',
+      'bookings:create',
+      'bookings:update',
+      'bookings:delete',
     ],
     description: {
       th: 'ผู้ดูแลระบบ - สามารถเข้าถึงและจัดการทุกส่วนของระบบรวมถึงจัดการห้องพักและการจอง',
@@ -74,6 +90,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       'dashboard:user',
       'settings:read',
       'reports:read',
+      'rooms:read',
+      'rooms:update',
+      'bookings:read',
+      'bookings:create',
+      'bookings:update',
     ],
     description: {
       th: 'ทีมสนับสนุน - สามารถช่วยเหลือลูกค้า จัดการการจอง และดูรายงาน',
@@ -82,7 +103,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
   },
   user: {
     role: 'user',
-    permissions: ['profile:read', 'profile:update', 'dashboard:user'],
+    permissions: [
+      'profile:read',
+      'profile:update',
+      'dashboard:user',
+      'rooms:read',
+      'bookings:read',
+      'bookings:create',
+    ],
     description: {
       th: 'ผู้เช่า - สามารถจองห้องพัก จัดการโปรไฟล์ และดูประวัติการจอง',
       en: 'Tenant - Can book rooms, manage profile, and view booking history',
@@ -110,7 +138,7 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   {
     path: '/admin/rooms',
     allowedRoles: ['admin'],
-    requiredPermissions: ['users:read'], // Room management permissions
+    requiredPermissions: ['rooms:read', 'rooms:update'],
   },
   {
     path: '/support',
@@ -135,12 +163,12 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   {
     path: '/rooms',
     allowedRoles: ['admin', 'support', 'user'],
-    requiredPermissions: ['dashboard:user'], // Users can view available rooms
+    requiredPermissions: ['rooms:read'],
   },
   {
     path: '/bookings',
     allowedRoles: ['admin', 'support', 'user'],
-    requiredPermissions: ['dashboard:user'], // Users can manage their bookings
+    requiredPermissions: ['bookings:read'],
   },
 ];
 
@@ -305,7 +333,7 @@ export const RENTAL_TYPE = {
 // Business rules
 export class RoomRentalRules {
   static canManageRooms(userRole: UserRole): boolean {
-    return hasPermission(userRole, 'users:read'); // Using existing permission
+    return hasPermission(userRole, 'rooms:update');
   }
 
   static canManageBookings(userRole: UserRole): boolean {
@@ -317,7 +345,7 @@ export class RoomRentalRules {
   }
 
   static canCreateBooking(userRole: UserRole): boolean {
-    return true; // All authenticated users can create bookings
+    return hasPermission(userRole, 'bookings:create');
   }
 
   static canCancelBooking(userRole: UserRole, isOwnBooking: boolean): boolean {
@@ -325,7 +353,7 @@ export class RoomRentalRules {
   }
 
   static canUpdateRoom(userRole: UserRole): boolean {
-    return userRole === 'admin';
+    return hasPermission(userRole, 'rooms:update');
   }
 
   static canViewReports(userRole: UserRole): boolean {

@@ -52,7 +52,6 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Semantic colors
         success: {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
@@ -69,7 +68,6 @@ const config: Config = {
           DEFAULT: 'hsl(var(--info))',
           foreground: 'hsl(var(--info-foreground))',
         },
-        // Role colors
         role: {
           admin: '#dc2626',
           support: '#2563eb',
@@ -145,37 +143,10 @@ const config: Config = {
         colored:
           '0 0 0 1px rgb(var(--ring) / 0.05), 0 1px 3px 0 rgb(var(--ring) / 0.1)',
       },
-      typography: {
-        DEFAULT: {
-          css: {
-            maxWidth: '65ch',
-            color: 'hsl(var(--foreground))',
-            h1: { color: 'hsl(var(--foreground))' },
-            h2: { color: 'hsl(var(--foreground))' },
-            h3: { color: 'hsl(var(--foreground))' },
-            h4: { color: 'hsl(var(--foreground))' },
-            code: {
-              color: 'hsl(var(--primary))',
-              backgroundColor: 'hsl(var(--muted))',
-              paddingLeft: '0.375rem',
-              paddingRight: '0.375rem',
-              paddingTop: '0.125rem',
-              paddingBottom: '0.125rem',
-              borderRadius: '0.25rem',
-              fontWeight: '400',
-            },
-            'code::before': { content: '""' },
-            'code::after': { content: '""' },
-          },
-        },
-      },
     },
   },
   plugins: [
-    require('@tailwindcss/typography'),
-    require('@tailwindcss/forms'),
-
-    // Custom plugin for RBAC utilities with proper typing
+    // Custom plugin for RBAC utilities
     function ({
       addUtilities,
       theme,
@@ -195,7 +166,7 @@ const config: Config = {
       addUtilities(roleUtilities);
     },
 
-    // Custom plugin for semantic states with proper typing
+    // Custom plugin for semantic states
     function ({
       addUtilities,
     }: {
@@ -215,7 +186,7 @@ const config: Config = {
       addUtilities(semanticUtilities);
     },
 
-    // Native CSS aspect-ratio support (replaces @tailwindcss/aspect-ratio)
+    // Native CSS aspect-ratio support
     function ({
       addUtilities,
     }: {

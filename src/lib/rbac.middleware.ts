@@ -45,11 +45,11 @@ const ROLE_REDIRECTS: Record<UserRole, string> = {
   user: '/dashboard',
 };
 
-const PROTECTED_ROUTES = {
+const PROTECTED_ROUTES: Record<string, UserRole[]> = {
   '/admin': ['admin'],
   '/dashboard': ['admin', 'support', 'user'],
   '/profile': ['admin', 'support', 'user'],
-} as const;
+};
 
 // Utilities
 class MiddlewareService {
@@ -119,7 +119,7 @@ class MiddlewareService {
     // Check specific protected routes
     for (const [route, allowedRoles] of Object.entries(PROTECTED_ROUTES)) {
       if (pathname.startsWith(route)) {
-        return (allowedRoles as UserRole[]).includes(userRole);
+        return allowedRoles.includes(userRole);
       }
     }
     return true;
@@ -276,9 +276,42 @@ export class ApiAuthService {
         'users:update',
         'users:delete',
         'dashboard:admin',
+        'dashboard:support',
+        'dashboard:user',
+        'settings:read',
+        'settings:update',
+        'reports:read',
+        'reports:create',
+        'reports:delete',
+        'rooms:read',
+        'rooms:create',
+        'rooms:update',
+        'rooms:delete',
+        'bookings:read',
+        'bookings:create',
+        'bookings:update',
+        'bookings:delete',
       ],
-      support: ['users:read', 'users:update', 'dashboard:support'],
-      user: ['profile:read', 'profile:update', 'dashboard:user'],
+      support: [
+        'users:read',
+        'users:update',
+        'dashboard:support',
+        'dashboard:user',
+        'reports:read',
+        'rooms:read',
+        'rooms:update',
+        'bookings:read',
+        'bookings:create',
+        'bookings:update',
+      ],
+      user: [
+        'profile:read',
+        'profile:update',
+        'dashboard:user',
+        'rooms:read',
+        'bookings:read',
+        'bookings:create',
+      ],
     };
 
     const userPermissions = rolePermissions[role] || [];
@@ -334,4 +367,29 @@ export function getUserFromHeaders(request: NextRequest): AuthUser | null {
     role: userRole as UserRole,
     email: userEmail,
   };
+}
+
+// Helper function for audit logging
+export async function createAuditLog(
+  supabase: any,
+  action: string,
+  userId: string,
+  performedBy: string,
+  details: any = {}
+) {
+  try {
+    const { error } = await supabase.from('audit_logs').insert({
+      action,
+      user_id: userId,
+      performed_by: performedBy,
+      details,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error('Audit log error:', error);
+    }
+  } catch (error) {
+    console.error('Failed to create audit log:', error);
+  }
 }
