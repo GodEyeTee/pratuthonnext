@@ -1,91 +1,13 @@
-import { createServerClient } from '@supabase/ssr';
+/**
+ * Enhanced Middleware with RBAC Support
+ * สำหรับ Next.js 15 App Router
+ */
+
+import { createRBACMiddleware } from '@/lib/rbac/middleware';
 import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  let res = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            req.cookies.set(name, value)
-          );
-          res = NextResponse.next({
-            request: {
-              headers: req.headers,
-            },
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // Skip auth check for callback routes
-  const isAuthCallback = req.nextUrl.pathname.startsWith('/auth/callback');
-
-  if (isAuthCallback) {
-    return res;
-  }
-
-  // Refresh session if expired - required for Server Components
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  // Handle session errors
-  if (error) {
-    console.error('Middleware auth error:', error);
-    // Clear potentially corrupted session
-    const redirectUrl = new URL('/login', req.url);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Protected routes
-  const protectedRoutes = ['/dashboard'];
-  const isProtectedRoute = protectedRoutes.some(route =>
-    req.nextUrl.pathname.startsWith(route)
-  );
-
-  // Auth routes (redirect if already logged in)
-  const authRoutes = ['/login'];
-  const isAuthRoute = authRoutes.some(route =>
-    req.nextUrl.pathname.startsWith(route)
-  );
-
-  if (isProtectedRoute && !session) {
-    const redirectUrl = new URL('/login', req.url);
-    redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (isAuthRoute && session) {
-    const redirectTo =
-      req.nextUrl.searchParams.get('redirectTo') || '/dashboard';
-
-    // ป้องกัน redirect loop
-    if (req.nextUrl.pathname === '/login' && redirectTo === '/dashboard') {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
-    }
-
-    return NextResponse.redirect(new URL(redirectTo, req.url));
-  }
-
-  return res;
+export async function middleware(request: NextRequest) {
+  return await createRBACMiddleware(request);
 }
 
 export const config = {
@@ -95,8 +17,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - API routes (they have their own protection)
+     * - API routes that don't need protection
+     * - Public assets
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/public|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
