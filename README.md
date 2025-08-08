@@ -189,6 +189,12 @@ npm run lint:fix
 npm run type-check
 ```
 
+### Testing
+
+```bash
+npm test
+```
+
 ### Build & Deploy
 
 ```bash
