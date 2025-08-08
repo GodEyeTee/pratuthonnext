@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useState } from 'react';
 import { Button } from './Button';
+import { ThemeToggle } from './ThemeToggle';
 
 export interface NavItem {
   label: {
@@ -94,6 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right side actions */}
           <div className="flex items-center space-x-4">
+            <ThemeToggle />
             {/* Language Toggle */}
             {onLanguageChange && (
               <Button

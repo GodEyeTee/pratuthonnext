@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import React from 'react';
+import { Slot } from './Slot';
 
 const cardVariants = cva(
   'rounded-lg border bg-card text-card-foreground shadow-sm',
@@ -39,14 +40,17 @@ export interface CardProps
   asChild?: boolean;
 }
 
-const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, padding, hover, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(cardVariants({ variant, padding, hover }), className)}
-      {...props}
-    />
-  )
+const Card = React.forwardRef<React.ElementRef<'div'>, CardProps>(
+  ({ className, variant, padding, hover, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : 'div';
+    return (
+      <Comp
+        ref={ref}
+        className={cn(cardVariants({ variant, padding, hover }), className)}
+        {...props}
+      />
+    );
+  }
 );
 Card.displayName = 'Card';
 
