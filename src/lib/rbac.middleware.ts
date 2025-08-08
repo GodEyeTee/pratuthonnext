@@ -91,10 +91,7 @@ class MiddlewareService {
     );
   }
 
-  private async getUserWithRole(
-    supabase: any,
-    userId: string
-  ): Promise<AuthUser | null> {
+  private async getUserWithRole(supabase: any): Promise<AuthUser | null> {
     try {
       // Get user metadata which contains the role
       const { data: user, error } = await supabase.auth.getUser();
@@ -169,7 +166,7 @@ class MiddlewareService {
 
       const session = data.session;
       const authUser = session
-        ? await this.getUserWithRole(supabase, session.user.id)
+        ? await this.getUserWithRole(supabase)
         : null;
 
       // Handle auth routes (redirect if already logged in)
