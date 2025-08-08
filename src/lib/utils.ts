@@ -105,9 +105,15 @@ export function toKebabCase(str: string): string {
 
 /**
  * Convert string to camelCase
+ * Ensures the first character is lowercase and subsequent separators
+ * (space, dash, underscore) are removed while capitalizing the following
+ * character.
  */
 export function toCamelCase(str: string): string {
-  return str.replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
+  const formatted = str.replace(/[-_\s]+(.)?/g, (_, c) =>
+    c ? c.toUpperCase() : ''
+  );
+  return formatted.charAt(0).toLowerCase() + formatted.slice(1);
 }
 
 /**
