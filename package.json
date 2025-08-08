@@ -11,6 +11,7 @@
     "lint": "next lint",
     "lint:fix": "prettier --write . && next lint --fix",
     "type-check": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types",
     "clean": "rm -rf .next out dist",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
