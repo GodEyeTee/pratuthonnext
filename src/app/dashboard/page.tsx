@@ -3,10 +3,23 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import type { User } from '@supabase/supabase-js';
+
+interface Profile {
+  display_name: string | null;
+  role: string;
+}
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -64,82 +77,97 @@ export default function Dashboard() {
     loadUserData();
   }, []);
 
-  if (loading) return <div>กำลังโหลด...</div>;
+  if (loading)
+    return <div className="container py-6">กำลังโหลด...</div>;
 
-  if (!user) return <div>กรุณาเข้าสู่ระบบ</div>;
+  if (!user) return <div className="container py-6">กรุณาเข้าสู่ระบบ</div>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">
+    <div className="container py-6 space-y-6">
+      <h1 className="text-2xl font-bold">
         ยินดีต้อนรับ, {profile?.display_name || user.email}!
       </h1>
 
-      <div className="mb-4">
-        <p>Email: {user.email}</p>
-        <p>
-          Role: <span className="font-bold">{profile?.role || 'user'}</span>
-        </p>
-        <p>
-          สมาชิกตั้งแต่: {new Date(user.created_at).toLocaleDateString('th-TH')}
-        </p>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>ข้อมูลผู้ใช้</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1 text-sm">
+          <p>Email: {user.email}</p>
+          <p>
+            Role: <span className="font-bold">{profile?.role || 'user'}</span>
+          </p>
+          <p>
+            สมาชิกตั้งแต่: {new Date(user.created_at).toLocaleDateString('th-TH')}
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">ไม่มีสิทธิ์เข้าถึง</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={
+                profile?.role === 'admin' ? 'text-green-600' : 'text-muted-foreground'
+              }
+            >
+              คุณ{profile?.role === 'admin' ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
+              (ต้องการสิทธิ์: admin)
+            </p>
+            {profile?.role === 'admin' && (
+              <Button className="mt-4">กลับหน้าแรก</Button>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">ไม่มีสิทธิ์เข้าถึง</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={
+                ['admin', 'support'].includes(profile?.role || '')
+                  ? 'text-green-600'
+                  : 'text-muted-foreground'
+              }
+            >
+              คุณ{['admin', 'support'].includes(profile?.role || '') ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
+              (ต้องการสิทธิ์: admin, support)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">ไม่มีสิทธิ์เข้าถึง</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={
+                profile?.role === 'admin' ? 'text-green-600' : 'text-muted-foreground'
+              }
+            >
+              คุณ{profile?.role === 'admin' ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
+              (ต้องการสิทธิ์: admin)
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mt-8">
-        <div className="border p-4 rounded">
-          <h3 className="font-bold mb-2">ไม่มีสิทธิ์เข้าถึง</h3>
-          <p
-            className={
-              profile?.role === 'admin' ? 'text-green-500' : 'text-gray-500'
-            }
-          >
-            คุณ{profile?.role === 'admin' ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
-            (ต้องการสิทธิ์: admin)
-          </p>
-          {profile?.role === 'admin' && (
-            <button className="bg-blue-500 text-white px-4 py-2 rounded mt-2">
-              กลับหน้าแรก
-            </button>
-          )}
-        </div>
-
-        <div className="border p-4 rounded">
-          <h3 className="font-bold mb-2">ไม่มีสิทธิ์เข้าถึง</h3>
-          <p
-            className={
-              ['admin', 'support'].includes(profile?.role)
-                ? 'text-green-500'
-                : 'text-gray-500'
-            }
-          >
-            คุณ{['admin', 'support'].includes(profile?.role) ? 'มี' : 'ไม่มี'}
-            สิทธิ์เข้าถึงส่วนนี้ (ต้องการสิทธิ์: admin, support)
-          </p>
-        </div>
-
-        <div className="border p-4 rounded">
-          <h3 className="font-bold mb-2">ไม่มีสิทธิ์เข้าถึง</h3>
-          <p
-            className={
-              profile?.role === 'admin' ? 'text-green-500' : 'text-gray-500'
-            }
-          >
-            คุณ{profile?.role === 'admin' ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
-            (ต้องการสิทธิ์: admin)
-          </p>
-        </div>
-      </div>
-
-      {/* Admin Panel - แสดงเฉพาะ admin */}
       {profile?.role === 'admin' && (
-        <div className="mt-8 p-4 bg-gray-100 rounded">
-          <h2 className="text-xl font-bold mb-4">Admin Panel</h2>
-          <button className="bg-blue-500 text-white px-4 py-2 rounded mr-2">
-            จัดการผู้ใช้
-          </button>
-          <button className="bg-green-500 text-white px-4 py-2 rounded">
-            ดูรายงาน
-          </button>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Admin Panel</CardTitle>
+          </CardHeader>
+          <CardContent className="flex space-x-2">
+            <Button>จัดการผู้ใช้</Button>
+            <Button variant="secondary">ดูรายงาน</Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
