@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import React from 'react';
+import { Slot } from './Slot';
 
 const buttonVariants = cva(
   // Base styles
@@ -51,7 +52,7 @@ export interface ButtonProps
   rightIcon?: React.ReactNode;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+const Button = React.forwardRef<React.ElementRef<'button'>, ButtonProps>(
   (
     {
       className,
@@ -63,17 +64,19 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       rightIcon,
       children,
       disabled,
+      asChild = false,
       ...props
     },
     ref
   ) => {
     const isDisabled = disabled || loading;
+    const Comp = asChild ? Slot : 'button';
 
     return (
-      <button
+      <Comp
         className={cn(buttonVariants({ variant, size, fullWidth, className }))}
         ref={ref}
-        disabled={isDisabled}
+        {...(!asChild && { disabled: isDisabled })}
         {...props}
       >
         {loading && (
@@ -82,7 +85,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {!loading && leftIcon && <span className="mr-2">{leftIcon}</span>}
         {children}
         {!loading && rightIcon && <span className="ml-2">{rightIcon}</span>}
-      </button>
+      </Comp>
     );
   }
 );
