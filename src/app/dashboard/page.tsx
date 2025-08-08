@@ -1,16 +1,10 @@
-// app/dashboard/page.tsx หรือ components/Dashboard.tsx
 'use client';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import type { User } from '@supabase/supabase-js';
+import { CreditCard, Home, TrendingUp, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Profile {
   display_name: string | null;
@@ -26,44 +20,35 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadUserData() {
       try {
-        // 1. Get current user
         const {
           data: { user },
         } = await supabase.auth.getUser();
-
         if (!user) {
           setLoading(false);
           return;
         }
-
         setUser(user);
 
-        // 2. Get profile with role
         const { data: profileData, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
 
-        if (error) {
-          console.error('Error fetching profile:', error);
-          // ถ้าไม่มี profile ให้สร้างใหม่
-          if (error.code === 'PGRST116') {
-            const { data: newProfile } = await supabase
-              .from('profiles')
-              .insert([
-                {
-                  id: user.id,
-                  email: user.email,
-                  display_name: user.email,
-                  role: 'user', // default role
-                },
-              ])
-              .select()
-              .single();
-
-            setProfile(newProfile);
-          }
+        if (error?.code === 'PGRST116') {
+          const { data: newProfile } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: user.id,
+                email: user.email,
+                display_name: user.email,
+                role: 'user',
+              },
+            ])
+            .select()
+            .single();
+          setProfile(newProfile);
         } else {
           setProfile(profileData);
         }
@@ -73,102 +58,135 @@ export default function Dashboard() {
         setLoading(false);
       }
     }
-
     loadUserData();
   }, []);
 
   if (loading)
-    return <div className="container py-6">กำลังโหลด...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
 
-  if (!user) return <div className="container py-6">กรุณาเข้าสู่ระบบ</div>;
+  if (!user)
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p>กรุณาเข้าสู่ระบบ</p>
+      </div>
+    );
+
+  const stats = [
+    { label: 'ห้องทั้งหมด', value: '24', icon: Home, color: 'blue' },
+    { label: 'ห้องที่ถูกเช่า', value: '18', icon: Users, color: 'green' },
+    {
+      label: 'รายได้เดือนนี้',
+      value: '฿45,280',
+      icon: CreditCard,
+      color: 'purple',
+    },
+    { label: 'อัตราการเช่า', value: '75%', icon: TrendingUp, color: 'orange' },
+  ];
 
   return (
-    <div className="container py-6 space-y-6">
-      <h1 className="text-2xl font-bold">
-        ยินดีต้อนรับ, {profile?.display_name || user.email}!
-      </h1>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>ข้อมูลผู้ใช้</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <p>Email: {user.email}</p>
-          <p>
-            Role: <span className="font-bold">{profile?.role || 'user'}</span>
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-[1440px]">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">
+            สวัสดี, {profile?.display_name || user.email}! 👋
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            ยินดีต้อนรับกลับสู่ระบบจัดการหอพัก
           </p>
-          <p>
-            สมาชิกตั้งแต่: {new Date(user.created_at).toLocaleDateString('th-TH')}
-          </p>
-        </CardContent>
-      </Card>
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">ไม่มีสิทธิ์เข้าถึง</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p
-              className={
-                profile?.role === 'admin' ? 'text-green-600' : 'text-muted-foreground'
-              }
-            >
-              คุณ{profile?.role === 'admin' ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
-              (ต้องการสิทธิ์: admin)
-            </p>
-            {profile?.role === 'admin' && (
-              <Button className="mt-4">กลับหน้าแรก</Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+          {stats.map((stat, index) => (
+            <Card key={index} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl font-bold mt-2">{stat.value}</p>
+                  </div>
+                  <div className={`p-3 rounded-lg bg-${stat.color}-500/10`}>
+                    <stat.icon className={`h-6 w-6 text-${stat.color}-500`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">ไม่มีสิทธิ์เข้าถึง</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p
-              className={
-                ['admin', 'support'].includes(profile?.role || '')
-                  ? 'text-green-600'
-                  : 'text-muted-foreground'
-              }
-            >
-              คุณ{['admin', 'support'].includes(profile?.role || '') ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
-              (ต้องการสิทธิ์: admin, support)
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>กิจกรรมล่าสุด</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map(item => (
+                  <div
+                    key={item}
+                    className="flex items-center space-x-4 p-4 rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        ห้อง {100 + item} ได้รับการจองแล้ว
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item} ชั่วโมงที่แล้ว
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">ไม่มีสิทธิ์เข้าถึง</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p
-              className={
-                profile?.role === 'admin' ? 'text-green-600' : 'text-muted-foreground'
-              }
-            >
-              คุณ{profile?.role === 'admin' ? 'มี' : 'ไม่มี'}สิทธิ์เข้าถึงส่วนนี้
-              (ต้องการสิทธิ์: admin)
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>ข้อมูลผู้ใช้</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-sm text-muted-foreground">อีเมล</span>
+                <span className="text-sm font-medium">{user.email}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-sm text-muted-foreground">บทบาท</span>
+                <span
+                  className={`text-sm font-medium px-2 py-1 rounded-full bg-${
+                    profile?.role === 'admin'
+                      ? 'red'
+                      : profile?.role === 'support'
+                        ? 'blue'
+                        : 'green'
+                  }-500/10 text-${
+                    profile?.role === 'admin'
+                      ? 'red'
+                      : profile?.role === 'support'
+                        ? 'blue'
+                        : 'green'
+                  }-600`}
+                >
+                  {profile?.role || 'user'}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-sm text-muted-foreground">
+                  สมาชิกตั้งแต่
+                </span>
+                <span className="text-sm font-medium">
+                  {new Date(user.created_at).toLocaleDateString('th-TH')}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      {profile?.role === 'admin' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin Panel</CardTitle>
-          </CardHeader>
-          <CardContent className="flex space-x-2">
-            <Button>จัดการผู้ใช้</Button>
-            <Button variant="secondary">ดูรายงาน</Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

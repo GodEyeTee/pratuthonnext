@@ -1,8 +1,8 @@
+import AppNavbar from '@/components/layout/AppNavbar';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import AppNavbar from '@/components/layout/AppNavbar';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -101,7 +101,7 @@ export default function RootLayout({
         />
       </head>
 
-      <body className="font-sans antialiased bg-background text-foreground">
+      <body className="font-sans antialiased">
         {/* Skip link for accessibility */}
         <a
           href="#main-content"

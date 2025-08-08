@@ -15,7 +15,7 @@ export default async function EditRoomPage({ params }: EditRoomPageProps) {
 
   return (
     <div className="container py-6 max-w-2xl">
-      <RoomForm room={room!} />
+      <RoomForm room={room || undefined} />
     </div>
   );
 }
