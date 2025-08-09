@@ -1,3 +1,4 @@
+// src/i18n/request.ts
 import { DEFAULT_LOCALE, translations, type Locale } from '@/lib/i18n.config';
 import { getRequestConfig } from 'next-intl/server';
 import { cookies } from 'next/headers';

@@ -1,4 +1,3 @@
-// app/layout.tsx
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -28,7 +27,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies(); // 👈 ต้อง await
+  // Next.js 15: cookies() เป็น async
+  const cookieStore = await cookies();
   const raw = cookieStore.get('locale')?.value as Locale | undefined;
   const locale: Locale =
     raw && ['th', 'en'].includes(raw) ? raw : DEFAULT_LOCALE;

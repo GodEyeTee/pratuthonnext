@@ -1,4 +1,3 @@
-// app/locale/route.ts
 import { AVAILABLE_LOCALES, DEFAULT_LOCALE } from '@/lib/i18n.config';
 import { NextResponse } from 'next/server';
 
