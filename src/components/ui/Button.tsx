@@ -6,22 +6,25 @@ import React from 'react';
 import { Slot } from './Slot';
 
 const buttonVariants = cva(
-  // Base styles
   'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        default:
+          'bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-orange-500 dark:text-white dark:hover:bg-orange-600',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 dark:bg-red-600 dark:hover:bg-red-700',
         outline:
-          'border border-input hover:bg-accent hover:text-accent-foreground',
+          'border border-input hover:bg-accent hover:text-accent-foreground dark:border-gray-600 dark:hover:bg-gray-700',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'underline-offset-4 hover:underline text-primary',
-        success: 'bg-green-600 text-white hover:bg-green-700',
-        warning: 'bg-yellow-600 text-white hover:bg-yellow-700',
+          'bg-secondary text-secondary-foreground hover:bg-secondary/80 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600',
+        ghost:
+          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-gray-700 dark:hover:text-gray-100',
+        link: 'underline-offset-4 hover:underline text-primary dark:text-orange-400',
+        success:
+          'bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600',
+        warning:
+          'bg-yellow-600 text-white hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600',
       },
       size: {
         default: 'h-10 py-2 px-4',
@@ -93,41 +96,3 @@ const Button = React.forwardRef<React.ElementRef<'button'>, ButtonProps>(
 Button.displayName = 'Button';
 
 export { Button, buttonVariants };
-
-// Preset button components for common use cases
-export const PrimaryButton: React.FC<Omit<ButtonProps, 'variant'>> = props => (
-  <Button variant="default" {...props} />
-);
-
-export const SecondaryButton: React.FC<
-  Omit<ButtonProps, 'variant'>
-> = props => <Button variant="secondary" {...props} />;
-
-export const DangerButton: React.FC<Omit<ButtonProps, 'variant'>> = props => (
-  <Button variant="destructive" {...props} />
-);
-
-export const OutlineButton: React.FC<Omit<ButtonProps, 'variant'>> = props => (
-  <Button variant="outline" {...props} />
-);
-
-export const GhostButton: React.FC<Omit<ButtonProps, 'variant'>> = props => (
-  <Button variant="ghost" {...props} />
-);
-
-export const SuccessButton: React.FC<Omit<ButtonProps, 'variant'>> = props => (
-  <Button variant="success" {...props} />
-);
-
-export const WarningButton: React.FC<Omit<ButtonProps, 'variant'>> = props => (
-  <Button variant="warning" {...props} />
-);
-
-// Icon button wrapper
-export const IconButton: React.FC<
-  Omit<ButtonProps, 'size'> & { icon: React.ReactNode }
-> = ({ icon, ...props }) => (
-  <Button size="icon" {...props}>
-    {icon}
-  </Button>
-);

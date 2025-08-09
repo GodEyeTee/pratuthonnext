@@ -1,19 +1,14 @@
 'use client';
 
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import { CreditCard, Home, TrendingUp, Users } from 'lucide-react';
+import { Activity, Battery, Sun, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
-interface Profile {
-  display_name: string | null;
-  role: string;
-}
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -23,35 +18,7 @@ export default function Dashboard() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user) {
-          setLoading(false);
-          return;
-        }
         setUser(user);
-
-        const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error?.code === 'PGRST116') {
-          const { data: newProfile } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: user.id,
-                email: user.email,
-                display_name: user.email,
-                role: 'user',
-              },
-            ])
-            .select()
-            .single();
-          setProfile(newProfile);
-        } else {
-          setProfile(profileData);
-        }
       } catch (error) {
         console.error('Error:', error);
       } finally {
@@ -61,47 +28,57 @@ export default function Dashboard() {
     loadUserData();
   }, []);
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <DashboardLayout title="Dashboard">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </DashboardLayout>
     );
-
-  if (!user)
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p>กรุณาเข้าสู่ระบบ</p>
-      </div>
-    );
+  }
 
   const stats = [
-    { label: 'ห้องทั้งหมด', value: '24', icon: Home, color: 'blue' },
-    { label: 'ห้องที่ถูกเช่า', value: '18', icon: Users, color: 'green' },
     {
-      label: 'รายได้เดือนนี้',
-      value: '฿45,280',
-      icon: CreditCard,
-      color: 'purple',
+      label: 'Total Devices',
+      value: '24',
+      icon: Battery,
+      color: 'from-blue-400 to-blue-600',
+      trend: '+12%',
     },
-    { label: 'อัตราการเช่า', value: '75%', icon: TrendingUp, color: 'orange' },
+    {
+      label: 'Active Now',
+      value: '18',
+      icon: Activity,
+      color: 'from-green-400 to-green-600',
+      trend: '+8%',
+    },
+    {
+      label: 'Energy Today',
+      value: '45.2 kWh',
+      icon: Zap,
+      color: 'from-purple-400 to-purple-600',
+      trend: '-3%',
+    },
+    {
+      label: 'Solar Production',
+      value: '32.8 kWh',
+      icon: Sun,
+      color: 'from-orange-400 to-orange-600',
+      trend: '+15%',
+    },
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)]">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-[1440px]">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">
-            สวัสดี, {profile?.display_name || user.email}! 👋
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            ยินดีต้อนรับกลับสู่ระบบจัดการหอพัก
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+    <DashboardLayout title="Devices" subtitle="Manage and monitor your devices">
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={index}
+              className="hover:shadow-lg transition-all dark:bg-gray-800 dark:border-gray-700"
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -109,9 +86,25 @@ export default function Dashboard() {
                       {stat.label}
                     </p>
                     <p className="text-2xl font-bold mt-2">{stat.value}</p>
+                    <div className="flex items-center mt-2">
+                      <span
+                        className={`text-xs font-medium ${
+                          stat.trend.startsWith('+')
+                            ? 'text-green-500'
+                            : 'text-red-500'
+                        }`}
+                      >
+                        {stat.trend}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        from last month
+                      </span>
+                    </div>
                   </div>
-                  <div className={`p-3 rounded-lg bg-${stat.color}-500/10`}>
-                    <stat.icon className={`h-6 w-6 text-${stat.color}-500`} />
+                  <div
+                    className={`p-3 rounded-xl bg-gradient-to-br ${stat.color}`}
+                  >
+                    <stat.icon className="h-6 w-6 text-white" />
                   </div>
                 </div>
               </CardContent>
@@ -119,26 +112,38 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-2">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Solar Batteries */}
+          <Card className="lg:col-span-2 dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
-              <CardTitle>กิจกรรมล่าสุด</CardTitle>
+              <CardTitle>Solar Batteries</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map(item => (
+                {[
+                  'Stackable LiFePO4 Battery',
+                  'Stack All in One',
+                  'Wall Mounted All in One',
+                ].map((name, i) => (
                   <div
-                    key={item}
-                    className="flex items-center space-x-4 p-4 rounded-lg hover:bg-accent transition-colors"
+                    key={i}
+                    className="flex items-center justify-between p-4 rounded-lg bg-accent/50 dark:bg-gray-700/50"
                   >
-                    <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        ห้อง {100 + item} ได้รับการจองแล้ว
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item} ชั่วโมงที่แล้ว
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                        <Battery className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          SL2V 100AH
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{85 + i * 5}%</p>
+                      <p className="text-xs text-muted-foreground">Charged</p>
                     </div>
                   </div>
                 ))}
@@ -146,47 +151,36 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Energy Monitors */}
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
-              <CardTitle>ข้อมูลผู้ใช้</CardTitle>
+              <CardTitle>Energy Monitors</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-sm text-muted-foreground">อีเมล</span>
-                <span className="text-sm font-medium">{user.email}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-sm text-muted-foreground">บทบาท</span>
-                <span
-                  className={`text-sm font-medium px-2 py-1 rounded-full bg-${
-                    profile?.role === 'admin'
-                      ? 'red'
-                      : profile?.role === 'support'
-                        ? 'blue'
-                        : 'green'
-                  }-500/10 text-${
-                    profile?.role === 'admin'
-                      ? 'red'
-                      : profile?.role === 'support'
-                        ? 'blue'
-                        : 'green'
-                  }-600`}
-                >
-                  {profile?.role || 'user'}
-                </span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-sm text-muted-foreground">
-                  สมาชิกตั้งแต่
-                </span>
-                <span className="text-sm font-medium">
-                  {new Date(user.created_at).toLocaleDateString('th-TH')}
-                </span>
+            <CardContent>
+              <div className="space-y-4">
+                {['Owl Intuition-e Online', 'Efergy E-max XL Kit'].map(
+                  (name, i) => (
+                    <div
+                      key={i}
+                      className="p-4 rounded-lg bg-accent/50 dark:bg-gray-700/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Activity className="w-5 h-5 text-orange-500" />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            MAX {i === 0 ? '100' : '200'} AMP, 90-600
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

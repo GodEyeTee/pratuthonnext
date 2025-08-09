@@ -1,3 +1,4 @@
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -10,14 +11,25 @@ import {
   TableRow,
 } from '@/components/ui/Table';
 import { createClient } from '@/lib/supabase/server';
-import { Edit, Eye, Plus, Trash2 } from 'lucide-react';
+import {
+  Calendar,
+  Edit,
+  Eye,
+  Home,
+  Plus,
+  Trash2,
+  Users,
+  Wrench,
+} from 'lucide-react';
 import Link from 'next/link';
+
 export default async function RoomsPage() {
   const supabase = await createClient();
   const { data: rooms } = await supabase
     .from('rooms')
     .select('*')
     .order('number');
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'available':
@@ -32,6 +44,7 @@ export default async function RoomsPage() {
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'standard':
@@ -44,150 +57,151 @@ export default async function RoomsPage() {
         return <Badge variant="outline">{type}</Badge>;
     }
   };
-  return (
-    <div className="container py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">จัดการห้องพัก</h1>
-          <p className="text-muted-foreground">
-            จัดการข้อมูลห้องพัก อัตราค่าเช่า และสถานะ
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/rooms/new">
-            <Plus className="mr-2 h-4 w-4" />
-            เพิ่มห้องพัก
-          </Link>
-        </Button>
-      </div>
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ห้องทั้งหมด
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{rooms?.length || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ห้องว่าง
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">
-              {rooms?.filter(r => r.status === 'available').length || 0}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ห้องที่มีผู้เช่า
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-orange-600">
-              {rooms?.filter(r => r.status === 'occupied').length || 0}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ซ่อมบำรุง
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-red-600">
-              {rooms?.filter(r => r.status === 'maintenance').length || 0}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Rooms Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>รายการห้องพัก</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>หมายเลข</TableHead>
-                <TableHead>ประเภท</TableHead>
-                <TableHead>ชั้น</TableHead>
-                <TableHead>สถานะ</TableHead>
-                <TableHead className="text-right">ราคารายวัน</TableHead>
-                <TableHead className="text-right">ราคารายเดือน</TableHead>
-                <TableHead className="text-right">ค่าน้ำ/หน่วย</TableHead>
-                <TableHead className="text-right">ค่าไฟ/หน่วย</TableHead>
-                <TableHead className="text-center">การดำเนินการ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rooms && rooms.length > 0 ? (
-                rooms.map(room => (
-                  <TableRow key={room.id}>
-                    <TableCell className="font-medium">{room.number}</TableCell>
-                    <TableCell>{getTypeBadge(room.type)}</TableCell>
-                    <TableCell>{room.floor}</TableCell>
-                    <TableCell>{getStatusBadge(room.status)}</TableCell>
-                    <TableCell className="text-right">
-                      ฿{room.rate_daily.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ฿{room.rate_monthly.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ฿{room.water_rate}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ฿{room.electric_rate}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-center space-x-1">
-                        <Button asChild size="sm" variant="ghost">
-                          <Link href={`/rooms/${room.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button asChild size="sm" variant="ghost">
-                          <Link href={`/rooms/${room.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center text-muted-foreground py-8"
+  const stats = [
+    {
+      label: 'ห้องทั้งหมด',
+      value: rooms?.length || 0,
+      icon: Home,
+      color: 'from-blue-400 to-blue-600',
+    },
+    {
+      label: 'ห้องว่าง',
+      value: rooms?.filter(r => r.status === 'available').length || 0,
+      icon: Users,
+      color: 'from-green-400 to-green-600',
+    },
+    {
+      label: 'ห้องที่มีผู้เช่า',
+      value: rooms?.filter(r => r.status === 'occupied').length || 0,
+      icon: Calendar,
+      color: 'from-orange-400 to-orange-600',
+    },
+    {
+      label: 'ซ่อมบำรุง',
+      value: rooms?.filter(r => r.status === 'maintenance').length || 0,
+      icon: Wrench,
+      color: 'from-red-400 to-red-600',
+    },
+  ];
+
+  return (
+    <DashboardLayout
+      title="Room Management"
+      subtitle="จัดการข้อมูลห้องพัก อัตราค่าเช่า และสถานะ"
+    >
+      <div className="space-y-6">
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat, index) => (
+            <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl font-bold mt-2">{stat.value}</p>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl bg-gradient-to-br ${stat.color}`}
                   >
-                    ยังไม่มีข้อมูลห้องพัก
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                    <stat.icon className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Rooms Table */}
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>รายการห้องพัก</CardTitle>
+            <Button asChild>
+              <Link href="/rooms/new">
+                <Plus className="mr-2 h-4 w-4" />
+                เพิ่มห้องพัก
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="dark:border-gray-700">
+                    <TableHead>หมายเลข</TableHead>
+                    <TableHead>ประเภท</TableHead>
+                    <TableHead>ชั้น</TableHead>
+                    <TableHead>สถานะ</TableHead>
+                    <TableHead className="text-right">ราคารายวัน</TableHead>
+                    <TableHead className="text-right">ราคารายเดือน</TableHead>
+                    <TableHead className="text-right">ค่าน้ำ/หน่วย</TableHead>
+                    <TableHead className="text-right">ค่าไฟ/หน่วย</TableHead>
+                    <TableHead className="text-center">การดำเนินการ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rooms && rooms.length > 0 ? (
+                    rooms.map(room => (
+                      <TableRow key={room.id} className="dark:border-gray-700">
+                        <TableCell className="font-medium">
+                          {room.number}
+                        </TableCell>
+                        <TableCell>{getTypeBadge(room.type)}</TableCell>
+                        <TableCell>{room.floor}</TableCell>
+                        <TableCell>{getStatusBadge(room.status)}</TableCell>
+                        <TableCell className="text-right">
+                          ฿{room.rate_daily.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ฿{room.rate_monthly.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ฿{room.water_rate}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ฿{room.electric_rate}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center space-x-1">
+                            <Button asChild size="sm" variant="ghost">
+                              <Link href={`/rooms/${room.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="ghost">
+                              <Link href={`/rooms/${room.id}/edit`}>
+                                <Edit className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow className="dark:border-gray-700">
+                      <TableCell
+                        colSpan={9}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        ยังไม่มีข้อมูลห้องพัก
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
   );
 }
