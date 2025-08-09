@@ -5,8 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { signOut } from '@/lib/auth.client';
 import { cn } from '@/lib/utils';
 import {
-  BarChart3,
-  Building,
+  BedDouble,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -20,123 +19,154 @@ import {
   Shield,
   Sun,
   User,
+  Users as UsersIcon,
   Wrench,
   X,
-  Zap,
 } from 'lucide-react';
+import { useLocale as useNextIntlLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
-interface SidebarItem {
+type SidebarItem = {
   id: string;
   label: string;
   icon: React.ReactNode;
   href?: string;
   children?: SidebarItem[];
   roles?: string[];
-}
+};
 
-export interface SidebarProps {
-  collapsed: boolean;
-  setCollapsed: (v: boolean) => void;
-  mobileOpen: boolean;
-  setMobileOpen: (v: boolean) => void;
-  onNavigate?: () => void; // optional hook if parent wants to know
-}
+type Props = {
+  collapsed?: boolean;
+  setCollapsed?: (v: boolean) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (v: boolean) => void;
+};
 
-const sidebarItems: SidebarItem[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: <Home className="w-5 h-5" />,
-    href: '/dashboard',
-  },
-  {
-    id: 'Rooms',
-    label: 'Rooms',
-    icon: <Building className="w-5 h-5" />,
-    href: '/rooms',
-  },
-  {
-    id: 'favourites',
-    label: 'Favourites',
-    icon: <BarChart3 className="w-5 h-5" />,
-    children: [
-      {
-        id: 'bookings',
-        label: 'Bookings',
-        icon: <Calendar className="w-5 h-5" />,
-        href: '/bookings',
-      },
-    ],
-  },
-];
-
-const systemManagementItems: SidebarItem[] = [
-  {
-    id: 'reports',
-    label: 'Reports',
-    icon: <FileText className="w-5 h-5" />,
-    href: '/reports',
-    roles: ['admin', 'support'],
-  },
-  {
-    id: 'automation',
-    label: 'Automation',
-    icon: <Zap className="w-5 h-5" />,
-    href: '/automation',
-    roles: ['admin'],
-  },
-  {
-    id: 'maintenance',
-    label: 'Maintenance',
-    icon: <Wrench className="w-5 h-5" />,
-    href: '/maintenance',
-    roles: ['admin', 'support'],
-  },
-  {
-    id: 'integration',
-    label: 'Integration',
-    icon: <Shield className="w-5 h-5" />,
-    href: '/integration',
-    roles: ['admin'],
-  },
-];
-
-const accountItems: SidebarItem[] = [
-  {
-    id: 'profile',
-    label: 'Profile',
-    icon: <User className="w-5 h-5" />,
-    href: '/profile',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: <Settings className="w-5 h-5" />,
-    href: '/settings',
-  },
-  {
-    id: 'help',
-    label: 'Help Center',
-    icon: <HelpCircle className="w-5 h-5" />,
-    href: '/help',
-  },
-];
-
-export default function Sidebar({
-  collapsed,
-  setCollapsed,
-  mobileOpen,
-  setMobileOpen,
-  onNavigate,
-}: SidebarProps) {
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+export default function Sidebar(props: Props) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuth();
   const { theme, toggleMode } = useTheme();
+
+  // i18n
+  const tNav = useTranslations('navigation');
+  const locale = useNextIntlLocale();
+
+  // controlled/uncontrolled support
+  const [collapsedU, setCollapsedU] = useState<boolean>(
+    props.collapsed ?? false
+  );
+  const [mobileOpenU, setMobileOpenU] = useState<boolean>(
+    props.mobileOpen ?? false
+  );
+  const collapsed = props.collapsed ?? collapsedU;
+  const setCollapsed = props.setCollapsed ?? setCollapsedU;
+  const mobileOpen = props.mobileOpen ?? mobileOpenU;
+  const setMobileOpen = props.setMobileOpen ?? setMobileOpenU;
+
+  useEffect(() => {
+    if (props.collapsed !== undefined) setCollapsedU(props.collapsed);
+    if (props.mobileOpen !== undefined) setMobileOpenU(props.mobileOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.collapsed, props.mobileOpen]);
+
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const filteredByRole = (items: SidebarItem[]) =>
+    items.filter(
+      it => !it.roles || it.roles.includes((user?.role as string) || 'user')
+    );
+
+  // เมนูหลัก (เน้นระบบห้องพัก)
+  const mainItems: SidebarItem[] = useMemo(
+    () => [
+      {
+        id: 'dashboard',
+        label: tNav('dashboard'),
+        icon: <Home className="w-5 h-5" />,
+        href: '/dashboard',
+      },
+      {
+        id: 'rooms',
+        label: tNav('rooms'),
+        icon: <BedDouble className="w-5 h-5" />,
+        href: '/rooms',
+      },
+      {
+        id: 'shortcuts',
+        label: locale === 'th' ? 'เมนูด่วน' : 'Shortcuts',
+        icon: <Calendar className="w-5 h-5" />,
+        children: [
+          {
+            id: 'bookings',
+            label: tNav('bookings'),
+            icon: <Calendar className="w-5 h-5" />,
+            href: '/bookings',
+          },
+        ],
+      },
+      {
+        id: 'users',
+        label: tNav('users'),
+        icon: <UsersIcon className="w-5 h-5" />,
+        href: '/admin/users',
+        roles: ['admin', 'support'],
+      },
+    ],
+    [tNav, locale, user?.role]
+  );
+
+  const systemItems: SidebarItem[] = useMemo(
+    () =>
+      filteredByRole([
+        {
+          id: 'reports',
+          label: tNav('reports'),
+          icon: <FileText className="w-5 h-5" />,
+          href: '/reports',
+          roles: ['admin', 'support'],
+        },
+        {
+          id: 'maintenance',
+          label: locale === 'th' ? 'งานซ่อมบำรุง' : 'Maintenance',
+          icon: <Wrench className="w-5 h-5" />,
+          href: '/maintenance',
+          roles: ['admin', 'support'],
+        },
+        {
+          id: 'integration',
+          label: locale === 'th' ? 'การเชื่อมต่อ' : 'Integration',
+          icon: <Shield className="w-5 h-5" />,
+          href: '/integration',
+          roles: ['admin'],
+        },
+      ]),
+    [tNav, locale, user?.role]
+  );
+
+  const accountItems: SidebarItem[] = useMemo(
+    () => [
+      {
+        id: 'profile',
+        label: tNav('profile'),
+        icon: <User className="w-5 h-5" />,
+        href: '/profile',
+      },
+      {
+        id: 'settings',
+        label: tNav('settings'),
+        icon: <Settings className="w-5 h-5" />,
+        href: '/settings',
+      },
+      {
+        id: 'help',
+        label: tNav('help'),
+        icon: <HelpCircle className="w-5 h-5" />,
+        href: '/help',
+      },
+    ],
+    [tNav]
+  );
 
   const toggleExpanded = (id: string) => {
     setExpandedItems(prev =>
@@ -146,17 +176,16 @@ export default function Sidebar({
 
   const handleLogout = async () => {
     await signOut();
-    router.push('/login');
+    window.location.href = '/login';
   };
 
-  const filteredSystemItems = systemManagementItems.filter(
-    item => !item.roles || item.roles.includes((user as any)?.role || 'user')
-  );
-
-  const renderSidebarItem = (item: SidebarItem, depth = 0) => {
-    const isActive = item.href ? pathname === item.href : false;
+  const renderItem = (item: SidebarItem, depth = 0) => {
+    const isActive =
+      item.href &&
+      (pathname === item.href ||
+        (item.href !== '/' && pathname.startsWith(item.href + '/')));
     const isExpanded = expandedItems.includes(item.id);
-    const hasChildren = !!(item.children && item.children.length > 0);
+    const hasChildren = !!item.children?.length;
 
     return (
       <div key={item.id}>
@@ -166,38 +195,37 @@ export default function Sidebar({
             if (hasChildren) {
               e.preventDefault();
               toggleExpanded(item.id);
-              return;
             }
-            // Close mobile nav on route
-            if (mobileOpen) setMobileOpen(false);
-            onNavigate?.();
           }}
+          title={collapsed ? item.label : undefined}
           className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all',
+            'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all',
             'hover:bg-accent/60',
             isActive && 'bg-accent text-accent-foreground',
             depth > 0 && 'ml-6'
           )}
-          aria-current={isActive ? 'page' : undefined}
         >
+          {/* active pill */}
+          <span
+            className={cn(
+              'absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-gradient-to-b from-orange-500 to-pink-500 opacity-0 transition-opacity',
+              isActive && 'opacity-100'
+            )}
+          />
           {item.icon}
           {!collapsed && (
             <>
-              <span className="flex-1 text-sm font-medium">{item.label}</span>
-              {hasChildren && (
-                <ChevronRight
-                  className={cn(
-                    'w-4 h-4 transition-transform',
-                    isExpanded && 'rotate-90'
-                  )}
-                />
-              )}
+              <span className="flex-1 text-sm font-medium truncate">
+                {item.label}
+              </span>
+              {hasChildren && <ChevronRightIcon open={isExpanded} />}
             </>
           )}
         </Link>
+
         {hasChildren && isExpanded && !collapsed && (
           <div className="mt-1 space-y-1">
-            {item.children!.map(child => renderSidebarItem(child, depth + 1))}
+            {item.children!.map(c => renderItem(c, depth + 1))}
           </div>
         )}
       </div>
@@ -209,9 +237,8 @@ export default function Sidebar({
       {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-background border shadow-lg"
-        aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-        aria-expanded={mobileOpen}
+        className="lg:hidden fixed top-4 left-4 z-[60] p-2 rounded-xl bg-background/90 border shadow-lg backdrop-blur"
+        aria-label="Toggle menu"
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
@@ -219,30 +246,47 @@ export default function Sidebar({
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 h-full bg-background border-r transition-all duration-300 z-40',
-          'dark:bg-gray-900 dark:border-gray-800',
+          'fixed top-0 left-0 h-full transition-all duration-300 z-50',
+          // ✅ ใช้ความกว้างแบบสลับทีเดียว แก้ปัญหาย่อแล้วกรอบไม่ย่อ
           collapsed ? 'w-16' : 'w-64',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
-        aria-label="Sidebar"
-        data-collapsed={collapsed}
       >
-        <div className="flex flex-col h-full">
+        {/* Panel */}
+        <div
+          className={cn(
+            'flex h-full flex-col border-r bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60',
+            'dark:bg-gray-950/75 dark:border-gray-900'
+          )}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b dark:border-gray-800">
+          <div className="flex items-center justify-between p-4 border-b dark:border-gray-900">
             {!collapsed && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-                  <Sun className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center shadow">
+                  <BedDouble className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-semibold text-lg">SolarSync</span>
+                <div className="leading-tight">
+                  <p className="font-semibold text-sm">
+                    {locale === 'th' ? 'ระบบหอพัก' : 'Rooms System'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Pratuthong</p>
+                </div>
               </div>
             )}
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="p-1.5 rounded-lg hover:bg-accent transition-colors hidden lg:block"
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-pressed={collapsed}
+              className="p-1.5 rounded-lg hover:bg-accent/60 transition-colors hidden lg:block"
+              aria-label={collapsed ? 'Expand' : 'Collapse'}
+              title={
+                collapsed
+                  ? locale === 'th'
+                    ? 'ขยาย'
+                    : 'Expand'
+                  : locale === 'th'
+                    ? 'ย่อ'
+                    : 'Collapse'
+              }
             >
               {collapsed ? (
                 <ChevronRight className="w-4 h-4" />
@@ -254,69 +298,110 @@ export default function Sidebar({
 
           {/* Navigation */}
           <div className="flex-1 overflow-y-auto p-3 space-y-6">
+            {/* Main */}
             <div className="space-y-1">
-              {sidebarItems.map(item => renderSidebarItem(item))}
+              {!collapsed && (
+                <SectionLabel text={locale === 'th' ? 'ทั่วไป' : 'General'} />
+              )}
+              {mainItems.map(it => renderItem(it))}
             </div>
 
-            {filteredSystemItems.length > 0 && (
+            {/* System */}
+            {systemItems.length > 0 && (
               <div className="space-y-1">
                 {!collapsed && (
-                  <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    System Management
-                  </p>
+                  <SectionLabel
+                    text={
+                      locale === 'th' ? 'การจัดการระบบ' : 'System Management'
+                    }
+                  />
                 )}
-                {filteredSystemItems.map(item => renderSidebarItem(item))}
+                {systemItems.map(it => renderItem(it))}
               </div>
             )}
 
+            {/* Account */}
             <div className="space-y-1">
               {!collapsed && (
-                <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Account Management
-                </p>
+                <SectionLabel
+                  text={locale === 'th' ? 'บัญชีผู้ใช้' : 'Account'}
+                />
               )}
-              {accountItems.map(item => renderSidebarItem(item))}
+              {accountItems.map(it => renderItem(it))}
             </div>
           </div>
 
           {/* Footer */}
-          <div className="border-t dark:border-gray-800 p-3 space-y-2">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleMode}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-accent/60 transition-all"
+          <div className="border-t dark:border-gray-900 p-3 space-y-2">
+            {/* Theme only (ตัดปุ่มภาษาออกตามที่ขอ) */}
+            <div
+              className={cn(
+                'flex items-center gap-2',
+                collapsed && 'justify-center'
+              )}
             >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-              {!collapsed && (
-                <span className="text-sm font-medium">
-                  {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                </span>
-              )}
-            </button>
+              <button
+                onClick={toggleMode}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent/60 transition-colors"
+                aria-label="Toggle theme"
+                title={
+                  theme === 'dark'
+                    ? locale === 'th'
+                      ? 'โหมดสว่าง'
+                      : 'Light Mode'
+                    : locale === 'th'
+                      ? 'โหมดมืด'
+                      : 'Dark Mode'
+                }
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5" />
+                ) : (
+                  <Moon className="w-5 h-5" />
+                )}
+                {!collapsed && (
+                  <span className="text-sm font-medium">
+                    {theme === 'dark'
+                      ? locale === 'th'
+                        ? 'โหมดสว่าง'
+                        : 'Light Mode'
+                      : locale === 'th'
+                        ? 'โหมดมืด'
+                        : 'Dark Mode'}
+                  </span>
+                )}
+              </button>
+            </div>
 
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all"
+              className={cn(
+                'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-all',
+                collapsed && 'justify-center'
+              )}
+              title={
+                collapsed
+                  ? locale === 'th'
+                    ? 'ออกจากระบบ'
+                    : 'Logout'
+                  : undefined
+              }
             >
               <LogOut className="w-5 h-5" />
               {!collapsed && (
-                <span className="text-sm font-medium">Logout</span>
+                <span className="text-sm font-medium">
+                  {locale === 'th' ? 'ออกจากระบบ' : 'Logout'}
+                </span>
               )}
             </button>
 
             {/* User Info */}
-            {!collapsed && (user as any) && (
-              <div className="px-3 py-2 bg-accent/30 rounded-lg">
-                <p className="text-xs font-medium truncate">
-                  {(user as any).email}
-                </p>
+            {!collapsed && user && (
+              <div className="px-3 py-2 bg-accent/40 rounded-lg">
+                <p className="text-xs font-medium truncate">{user.email}</p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {(user as any).role}
+                  {(user.role as string) || 'user'}
                 </p>
               </div>
             )}
@@ -327,10 +412,35 @@ export default function Sidebar({
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setMobileOpen(false)}
         />
       )}
     </>
+  );
+}
+
+function SectionLabel({ text }: { text: string }) {
+  return (
+    <p className="px-3 pb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+      {text}
+    </p>
+  );
+}
+
+function ChevronRightIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={cn('w-4 h-4 transition-transform', open && 'rotate-90')}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
   );
 }
