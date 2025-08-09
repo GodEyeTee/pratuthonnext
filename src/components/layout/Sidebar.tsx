@@ -37,6 +37,14 @@ interface SidebarItem {
   roles?: string[];
 }
 
+export interface SidebarProps {
+  collapsed: boolean;
+  setCollapsed: (v: boolean) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (v: boolean) => void;
+  onNavigate?: () => void; // optional hook if parent wants to know
+}
+
 const sidebarItems: SidebarItem[] = [
   {
     id: 'dashboard',
@@ -45,8 +53,8 @@ const sidebarItems: SidebarItem[] = [
     href: '/dashboard',
   },
   {
-    id: 'devices',
-    label: 'Devices',
+    id: 'Rooms',
+    label: 'Rooms',
     icon: <Building className="w-5 h-5" />,
     href: '/rooms',
   },
@@ -117,9 +125,13 @@ const accountItems: SidebarItem[] = [
   },
 ];
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+export default function Sidebar({
+  collapsed,
+  setCollapsed,
+  mobileOpen,
+  setMobileOpen,
+  onNavigate,
+}: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
   const router = useRouter();
@@ -138,13 +150,13 @@ export default function Sidebar() {
   };
 
   const filteredSystemItems = systemManagementItems.filter(
-    item => !item.roles || item.roles.includes(user?.role || 'user')
+    item => !item.roles || item.roles.includes((user as any)?.role || 'user')
   );
 
   const renderSidebarItem = (item: SidebarItem, depth = 0) => {
-    const isActive = pathname === item.href;
+    const isActive = item.href ? pathname === item.href : false;
     const isExpanded = expandedItems.includes(item.id);
-    const hasChildren = item.children && item.children.length > 0;
+    const hasChildren = !!(item.children && item.children.length > 0);
 
     return (
       <div key={item.id}>
@@ -154,14 +166,19 @@ export default function Sidebar() {
             if (hasChildren) {
               e.preventDefault();
               toggleExpanded(item.id);
+              return;
             }
+            // Close mobile nav on route
+            if (mobileOpen) setMobileOpen(false);
+            onNavigate?.();
           }}
           className={cn(
             'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all',
-            'hover:bg-accent/50',
+            'hover:bg-accent/60',
             isActive && 'bg-accent text-accent-foreground',
             depth > 0 && 'ml-6'
           )}
+          aria-current={isActive ? 'page' : undefined}
         >
           {item.icon}
           {!collapsed && (
@@ -193,6 +210,8 @@ export default function Sidebar() {
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-background border shadow-lg"
+        aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={mobileOpen}
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
@@ -205,6 +224,8 @@ export default function Sidebar() {
           collapsed ? 'w-16' : 'w-64',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
+        aria-label="Sidebar"
+        data-collapsed={collapsed}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -220,6 +241,8 @@ export default function Sidebar() {
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="p-1.5 rounded-lg hover:bg-accent transition-colors hidden lg:block"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-pressed={collapsed}
             >
               {collapsed ? (
                 <ChevronRight className="w-4 h-4" />
@@ -231,12 +254,10 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <div className="flex-1 overflow-y-auto p-3 space-y-6">
-            {/* Main Navigation */}
             <div className="space-y-1">
               {sidebarItems.map(item => renderSidebarItem(item))}
             </div>
 
-            {/* System Management */}
             {filteredSystemItems.length > 0 && (
               <div className="space-y-1">
                 {!collapsed && (
@@ -248,7 +269,6 @@ export default function Sidebar() {
               </div>
             )}
 
-            {/* Account Management */}
             <div className="space-y-1">
               {!collapsed && (
                 <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -264,7 +284,7 @@ export default function Sidebar() {
             {/* Theme Toggle */}
             <button
               onClick={toggleMode}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-accent/50 transition-all"
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-accent/60 transition-all"
             >
               {theme === 'dark' ? (
                 <Sun className="w-5 h-5" />
@@ -290,11 +310,13 @@ export default function Sidebar() {
             </button>
 
             {/* User Info */}
-            {!collapsed && user && (
+            {!collapsed && (user as any) && (
               <div className="px-3 py-2 bg-accent/30 rounded-lg">
-                <p className="text-xs font-medium truncate">{user.email}</p>
+                <p className="text-xs font-medium truncate">
+                  {(user as any).email}
+                </p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {user.role}
+                  {(user as any).role}
                 </p>
               </div>
             )}

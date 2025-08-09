@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Bell, ChevronDown, Search } from 'lucide-react';
 import { useState } from 'react';
 import Sidebar from './Sidebar';
+import LanguageToggle, { type Locale } from '@/components/i18n/LanguageToggle';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,24 +19,38 @@ export default function DashboardLayout({
   subtitle,
 }: DashboardLayoutProps) {
   const { user } = useAuth();
+
+  // 🔑 Lifted state so content area can respond to sidebar width
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <div className="min-h-screen bg-background dark:bg-gray-950">
-      {/* Sidebar */}
-      <Sidebar />
+      {/* Sidebar (controlled) */}
+      <Sidebar
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
 
       {/* Main Content */}
-      <div className="lg:ml-64 transition-all duration-300">
+      <div
+        className={cn(
+          'transition-all duration-300',
+          collapsed ? 'lg:ml-16' : 'lg:ml-64' // ✅ expands when collapsed
+        )}
+      >
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-background/95 dark:bg-gray-900/95 backdrop-blur border-b dark:border-gray-800">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               {/* Left side - Title */}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {title && (
                   <div>
-                    <h1 className="text-xl font-semibold text-foreground">
+                    <h1 className="text-xl font-semibold text-foreground truncate">
                       {title}
                     </h1>
                     {subtitle && (
@@ -55,7 +70,7 @@ export default function DashboardLayout({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type="text"
-                      placeholder="Search equipment..."
+                      placeholder="Search..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       className={cn(
@@ -71,7 +86,10 @@ export default function DashboardLayout({
                 </div>
 
                 {/* Notifications */}
-                <button className="relative p-2 rounded-lg hover:bg-accent dark:hover:bg-gray-800 transition-colors">
+                <button
+                  className="relative p-2 rounded-lg hover:bg-accent dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Notifications"
+                >
                   <Bell className="w-5 h-5" />
                   <span className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full" />
                 </button>

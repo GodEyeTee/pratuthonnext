@@ -11,11 +11,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'SolarSync - Energy Management System',
-    template: '%s | SolarSync',
+    default: 'Pratuthong - Rooms Management System',
+    template: '%s | Pratuthong',
   },
-  description: 'Modern energy management and monitoring system',
-  keywords: ['energy', 'solar', 'monitoring', 'management', 'IoT'],
+  description: 'Modern rooms management and monitoring system',
+  keywords: ['rooms', 'rent', 'monitoring', 'management', 'IoT'],
 };
 
 export default function RootLayout({

@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import { Activity, Battery, Sun, Zap } from 'lucide-react';
+import { Activity, CalendarDays, Hotel, Users, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function Dashboard() {
@@ -32,7 +32,7 @@ export default function Dashboard() {
     return (
       <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500" />
         </div>
       </DashboardLayout>
     );
@@ -40,64 +40,85 @@ export default function Dashboard() {
 
   const stats = [
     {
-      label: 'Total Devices',
+      label: 'Total Rooms',
       value: '24',
-      icon: Battery,
-      color: 'from-blue-400 to-blue-600',
-      trend: '+12%',
+      icon: Hotel,
+      color: 'from-blue-500 to-blue-600',
+      trend: '+2%',
     },
     {
-      label: 'Active Now',
+      label: 'Occupied',
       value: '18',
-      icon: Activity,
-      color: 'from-green-400 to-green-600',
-      trend: '+8%',
+      icon: Users,
+      color: 'from-green-500 to-green-600',
+      trend: '+5%',
     },
     {
-      label: 'Energy Today',
-      value: '45.2 kWh',
-      icon: Zap,
-      color: 'from-purple-400 to-purple-600',
+      label: 'Vacant',
+      value: '6',
+      icon: Activity,
+      color: 'from-amber-500 to-amber-600',
       trend: '-3%',
     },
     {
-      label: 'Solar Production',
-      value: '32.8 kWh',
-      icon: Sun,
-      color: 'from-orange-400 to-orange-600',
-      trend: '+15%',
+      label: 'Check‑ins Today',
+      value: '5',
+      icon: CalendarDays,
+      color: 'from-violet-500 to-violet-600',
+      trend: '+1',
     },
   ];
 
+  // Weekly (แสดงอาทิตย์) occupancy % for Mon–Sun
+  const week = [
+    { day: 'Mon', value: 72 },
+    { day: 'Tue', value: 75 },
+    { day: 'Wed', value: 78 },
+    { day: 'Thu', value: 80 },
+    { day: 'Fri', value: 83 },
+    { day: 'Sat', value: 85 },
+    { day: 'Sun', value: 79 },
+  ];
+
+  const maintenance = [
+    { room: 'A-203', title: 'Aircon not cooling', priority: 'High' },
+    { room: 'B-105', title: 'Leaking faucet', priority: 'Medium' },
+    { room: 'C-310', title: 'Broken wardrobe hinge', priority: 'Low' },
+  ];
+
+  const upcoming = [
+    { date: 'Today', name: 'P. Phon', room: 'A-108', type: 'Check‑in' },
+    { date: 'Tomorrow', name: 'N. Suda', room: 'B-204', type: 'Check‑in' },
+    { date: 'Aug 12', name: 'J. Arun', room: 'C-101', type: 'Check‑out' },
+  ];
+
   return (
-    <DashboardLayout title="Devices" subtitle="Manage and monitor your devices">
+    <DashboardLayout title="Rooms" subtitle="Manage and monitor your rooms">
       <div className="space-y-6">
-        {/* Stats Grid */}
+        {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
+          {stats.map((stat, i) => (
             <Card
-              key={index}
-              className="hover:shadow-lg transition-all dark:bg-gray-800 dark:border-gray-700"
+              key={i}
+              className="hover:shadow-lg transition-all bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800"
             >
-              <CardContent className="p-6">
+              <CardContent className="p-6 pt-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-muted-foreground">
                       {stat.label}
                     </p>
-                    <p className="text-2xl font-bold mt-2">{stat.value}</p>
+                    <p className="text-2xl font-semibold mt-2 text-foreground">
+                      {stat.value}
+                    </p>
                     <div className="flex items-center mt-2">
                       <span
-                        className={`text-xs font-medium ${
-                          stat.trend.startsWith('+')
-                            ? 'text-green-500'
-                            : 'text-red-500'
-                        }`}
+                        className={`text-xs font-medium ${String(stat.trend).startsWith('+') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                       >
                         {stat.trend}
                       </span>
                       <span className="text-xs text-muted-foreground ml-2">
-                        from last month
+                        vs last week
                       </span>
                     </div>
                   </div>
@@ -112,74 +133,96 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Main Content Grid */}
+        {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Solar Batteries */}
-          <Card className="lg:col-span-2 dark:bg-gray-800 dark:border-gray-700">
+          {/* Weekly Occupancy */}
+          <Card className="lg:col-span-2 bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
             <CardHeader>
-              <CardTitle>Solar Batteries</CardTitle>
+              <CardTitle className="text-foreground">This Week</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {[
-                  'Stackable LiFePO4 Battery',
-                  'Stack All in One',
-                  'Wall Mounted All in One',
-                ].map((name, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-4 rounded-lg bg-accent/50 dark:bg-gray-700/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-                        <Battery className="w-5 h-5 text-white" />
+              <div className="grid grid-cols-7 gap-3">
+                {week.map(d => (
+                  <div key={d.day} className="flex flex-col items-center">
+                    <div className="h-28 w-full rounded-md bg-muted overflow-hidden">
+                      <div
+                        className="w-full bg-gradient-to-t from-blue-500 to-blue-400"
+                        style={{ height: `${d.value}%` }}
+                      />
+                    </div>
+                    <span className="mt-2 text-xs text-muted-foreground">
+                      {d.day}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Occupancy percentage by day (Mon–Sun).
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Open Maintenance (replaces Energy Monitors) */}
+          <Card className="bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-foreground">
+                Open Maintenance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {maintenance.map((m, i) => (
+                  <div key={i} className="p-4 rounded-lg bg-muted">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-md bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+                        <Wrench className="w-5 h-5 text-white" />
                       </div>
-                      <div>
-                        <p className="font-medium">{name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          SL2V 100AH
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground leading-tight">
+                          {m.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Room {m.room} • {m.priority} priority
                         </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{85 + i * 5}%</p>
-                      <p className="text-xs text-muted-foreground">Charged</p>
                     </div>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
-
-          {/* Energy Monitors */}
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle>Energy Monitors</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {['Owl Intuition-e Online', 'Efergy E-max XL Kit'].map(
-                  (name, i) => (
-                    <div
-                      key={i}
-                      className="p-4 rounded-lg bg-accent/50 dark:bg-gray-700/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Activity className="w-5 h-5 text-orange-500" />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            MAX {i === 0 ? '100' : '200'} AMP, 90-600
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
+
+        {/* Upcoming section (replaces Solar Batteries list) */}
+        <Card className="bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-foreground">Upcoming</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {upcoming.map((u, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center">
+                      <CalendarDays className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground leading-tight">
+                        {u.type} — {u.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {u.date} • Room {u.room}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
