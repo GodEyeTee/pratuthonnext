@@ -36,27 +36,18 @@ export async function signInWithGoogle(
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // ใช้ custom callback route
-        redirectTo: `${window.location.origin}/auth/callback?next=${redirectTo || '/dashboard'}`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+          redirectTo || '/dashboard'
+        )}`,
       },
     });
 
     if (error) {
-      captureError(new Error(error.message), {
-        context: 'signInWithGoogle',
-        error_code: error.name,
-        redirect_to: redirectTo,
-      });
-      return { data: null, error: 'Failed to sign in with Google' };
+      return { data: null, error: error.message };
     }
 
     return { data: null, error: null };
   } catch (error) {
-    captureError(error as Error, { context: 'signInWithGoogle' });
     return { data: null, error: 'Unexpected error signing in with Google' };
   }
 }

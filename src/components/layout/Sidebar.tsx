@@ -19,7 +19,7 @@ import {
   Shield,
   Sun,
   User,
-  Users as UsersIcon,
+  Users,
   Wrench,
   X,
 } from 'lucide-react';
@@ -93,27 +93,19 @@ export default function Sidebar(props: Props) {
         href: '/rooms',
       },
       {
-        id: 'shortcuts',
-        label: locale === 'th' ? 'เมนูด่วน' : 'Shortcuts',
-        icon: <Calendar className="w-5 h-5" />,
-        children: [
-          {
-            id: 'bookings',
-            label: tNav('bookings'),
-            icon: <Calendar className="w-5 h-5" />,
-            href: '/bookings',
-          },
-        ],
+        id: 'tenants',
+        label: locale === 'th' ? 'ผู้เช่า' : 'Tenants',
+        icon: <Users className="w-5 h-5" />,
+        href: '/tenants',
       },
       {
-        id: 'users',
-        label: tNav('users'),
-        icon: <UsersIcon className="w-5 h-5" />,
-        href: '/admin/users',
-        roles: ['admin', 'support'],
+        id: 'bookings',
+        label: tNav('bookings'),
+        icon: <Calendar className="w-5 h-5" />,
+        href: '/bookings',
       },
     ],
-    [tNav, locale, user?.role]
+    [tNav, locale]
   );
 
   const systemItems: SidebarItem[] = useMemo(
