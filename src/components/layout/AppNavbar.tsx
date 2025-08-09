@@ -1,63 +1,236 @@
 'use client';
 
+import { useAuth } from '@/hooks/useAuth';
+import { signOut } from '@/lib/auth.client';
+import { cn } from '@/lib/utils';
+import {
+  Bell,
+  ChevronDown,
+  LogOut,
+  Search,
+  Settings,
+  User,
+} from 'lucide-react';
+import { useLocale as useNextIntlLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
-// ถ้าจะใช้ที่อื่นต่อก็ export type นี้ไปได้
-export type Locale = 'th' | 'en';
-export type NavItem = {
-  label: Record<Locale, string>;
-  href: string;
-  /** ถ้าอยากให้ active เฉพาะ path ตรงเป๊ะๆ */
-  exact?: boolean;
+type Props = {
+  title?: string;
+  subtitle?: string;
+  rightExtra?: React.ReactNode; // เผื่ออยากใส่ LanguageToggle ที่หัวบาร์
 };
 
-const items: NavItem[] = [
-  { label: { th: 'แดชบอร์ด', en: 'Dashboard' }, href: '/dashboard' },
-  { label: { th: 'ห้องพัก', en: 'Rooms' }, href: '/rooms' },
-  { label: { th: 'ผู้ใช้', en: 'Users' }, href: '/admin/users' },
-];
+export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
+  const { user } = useAuth();
+  const tNav = useTranslations('navigation');
+  const tAuth = useTranslations('auth');
+  const locale = useNextIntlLocale();
 
-function isActive(pathname: string, href: string, exact?: boolean) {
-  if (exact) return pathname === href;
-  // ให้ /dashboard active ครอบเส้นทางย่อยด้วย แต่ไม่ให้ "/" ครอบทั้งหมด
-  return href === '/' ? pathname === '/' : pathname.startsWith(href);
-}
+  const [searchQuery, setSearchQuery] = useState('');
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement | null>(null);
+  const profileRef = useRef<HTMLDivElement | null>(null);
 
-export function AppNavbar({ locale = 'th' as Locale }: { locale?: Locale }) {
-  const pathname = usePathname();
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      const node = e.target as Node;
+      if (notifRef.current && !notifRef.current.contains(node))
+        setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(node))
+        setProfileOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setNotifOpen(false);
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const logout = async () => {
+    await signOut();
+    window.location.href = '/login';
+  };
 
   return (
-    <nav
-      aria-label="Main"
-      className="flex items-center justify-between gap-4 px-4 py-3 border-b"
-    >
-      <Link href="/" className="font-semibold text-lg">
-        ระบบหอพัก
-      </Link>
+    <header className="sticky top-0 z-30 bg-background/90 backdrop-blur border-b dark:bg-gray-900/80 dark:border-gray-800">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Title / Subtitle */}
+          <div className="flex-1 min-w-0">
+            {title && (
+              <div>
+                <h1 className="text-xl font-semibold text-foreground truncate">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="text-sm text-muted-foreground">{subtitle}</p>
+                )}
+              </div>
+            )}
+          </div>
 
-      <ul role="list" className="flex items-center gap-4">
-        {items.map(item => {
-          const active = isActive(pathname, item.href, item.exact);
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={
-                  active
-                    ? 'underline underline-offset-4'
-                    : 'hover:underline underline-offset-4'
-                }
+          {/* Right */}
+          <div className="flex items-center gap-3">
+            {rightExtra}
+
+            {/* Search */}
+            <div className="hidden md:flex items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className={cn(
+                    'pl-9 pr-4 py-2 w-64 rounded-lg',
+                    'bg-background dark:bg-gray-800',
+                    'border dark:border-gray-700',
+                    'text-foreground placeholder:text-muted-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400',
+                    'transition-all'
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Notifications */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen(o => !o)}
+                className="relative p-2 rounded-lg hover:bg-accent/60 transition-colors"
+                aria-haspopup="menu"
+                aria-expanded={notifOpen}
+                aria-label={locale === 'th' ? 'การแจ้งเตือน' : 'Notifications'}
               >
-                {item.label[locale]}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full" />
+              </button>
+
+              {notifOpen && (
+                <GlassPopover className="right-0 mt-2 w-80" role="menu">
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <p className="text-sm font-semibold">
+                      {locale === 'th' ? 'การแจ้งเตือน' : 'Notifications'}
+                    </p>
+                  </div>
+                  <div className="max-h-80 overflow-auto">
+                    {/* TODO: ผูกข้อมูลจริง */}
+                    <p className="p-4 text-sm text-muted-foreground text-center">
+                      {locale === 'th'
+                        ? 'ยังไม่มีการแจ้งเตือน'
+                        : 'No notifications yet'}
+                    </p>
+                  </div>
+                  <div className="px-3 py-2 border-t border-white/10 text-right text-sm">
+                    <button
+                      onClick={() => setNotifOpen(false)}
+                      className="px-3 py-1.5 rounded-md hover:bg-white/10"
+                    >
+                      {locale === 'th' ? 'ปิด' : 'Close'}
+                    </button>
+                  </div>
+                </GlassPopover>
+              )}
+            </div>
+
+            {/* Profile */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(o => !o)}
+                className="flex items-center gap-2"
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </button>
+
+              {profileOpen && (
+                <GlassPopover className="right-0 mt-2 w-64" role="menu">
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <p className="text-sm font-semibold">
+                      {user?.email || 'User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {(user?.role as string) || 'user'}
+                    </p>
+                  </div>
+                  <div className="p-1">
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10"
+                      role="menuitem"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      <User className="w-4 h-4" />
+                      <span className="text-sm">{tNav('profile')}</span>
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10"
+                      role="menuitem"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span className="text-sm">{tNav('settings')}</span>
+                    </Link>
+                  </div>
+                  <div className="p-1 border-t border-white/10">
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-red-500/10 hover:text-red-400"
+                      role="menuitem"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="text-sm">{tAuth('signOut')}</span>
+                    </button>
+                  </div>
+                </GlassPopover>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
   );
 }
 
-export default AppNavbar;
+/** Glass popover: ขุ่น/ฟุ้งแบบกระจก + gradient อ่อน ๆ รองรับ dark */
+function GlassPopover({
+  className,
+  children,
+  ...rest
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        'absolute rounded-2xl overflow-hidden',
+        // พื้นแก้ว
+        'bg-white/10 dark:bg-white/5 supports-[backdrop-filter]:bg-white/10',
+        'backdrop-blur-2xl',
+        // เส้นขอบ/เงา
+        'ring-1 ring-white/30 dark:ring-white/10 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.45)]',
+        // ไล่เฉดฟุ้ง ๆ
+        'bg-gradient-to-br from-white/20 via-white/10 to-white/5 dark:from-white/10 dark:via-white/5 dark:to-transparent',
+        className
+      )}
+      {...rest}
+    >
+      {children}
+    </div>
+  );
+}
