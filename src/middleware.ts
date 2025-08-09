@@ -1,14 +1,10 @@
+// src/middleware.ts
 import { createServerClient } from '@supabase/ssr';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-// Public routes ที่ไม่ต้อง login
 const PUBLIC_ROUTES = ['/', '/login', '/auth/callback', '/about', '/contact'];
-
-// Routes ที่ต้อง redirect ไป dashboard ถ้า login แล้ว
 const AUTH_ROUTES = ['/login', '/register'];
-
-// Protected routes ที่ต้อง login
 const PROTECTED_ROUTES = [
   '/dashboard',
   '/profile',
@@ -20,19 +16,36 @@ const PROTECTED_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static files
+  // 1) fast-exit: static/assets/api health/locale
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.includes('.') ||
-    pathname.startsWith('/api/health')
+    pathname.startsWith('/api/health') ||
+    pathname.startsWith('/locale') // 👈 สำคัญ: อย่าช้าให้เส้นนี้
   ) {
     return NextResponse.next();
   }
 
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  // 2) classify route BEFORE touching supabase
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    route => route === pathname || pathname.startsWith(route + '/')
+  );
+  const isAuthRoute = AUTH_ROUTES.some(
+    route => pathname === route || pathname.startsWith(route + '/')
+  );
+  const isProtectedRoute = PROTECTED_ROUTES.some(
+    route => pathname === route || pathname.startsWith(route + '/')
+  );
+  const isAdminRoute = pathname.startsWith('/admin');
+
+  // 3) ถ้าเป็น public และไม่ใช่ admin/protected/auth → ไม่ต้องเรียก Supabase เลย
+  if (!isAuthRoute && !isProtectedRoute && !isAdminRoute) {
+    return NextResponse.next();
+  }
+
+  // 4) เฉพาะกรณีที่ต้องรู้ user เท่านั้น เราจึงสร้าง client และเรียก getUser()
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,61 +65,37 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Get user session
   const {
     data: { user },
-    error,
   } = await supabase.auth.getUser();
 
-  // Check if route is public
-  const isPublicRoute = PUBLIC_ROUTES.some(
-    route => route === pathname || pathname.startsWith(route + '/')
-  );
-
-  // Check if route is auth route
-  const isAuthRoute = AUTH_ROUTES.some(
-    route => pathname === route || pathname.startsWith(route + '/')
-  );
-
-  // Check if route is protected
-  const isProtectedRoute = PROTECTED_ROUTES.some(
-    route => pathname === route || pathname.startsWith(route + '/')
-  );
-
-  // If user is not logged in and trying to access protected route
-  if (!user && isProtectedRoute) {
-    const loginUrl = new URL('/login', request.url);
-    // Add redirect param to return after login
-    if (pathname !== '/') {
-      loginUrl.searchParams.set('redirect', pathname);
-    }
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // If user is logged in and trying to access auth routes (login/register)
+  // 5) auth route: ถ้า login แล้ว → เด้งไป dashboard
   if (user && isAuthRoute) {
     const dashboardUrl = new URL('/dashboard', request.url);
     return NextResponse.redirect(dashboardUrl);
   }
 
-  // For admin routes, check role
-  if (pathname.startsWith('/admin') && user) {
+  // 6) protected: ถ้าไม่ login → เด้งไป login
+  if (!user && isProtectedRoute) {
+    const loginUrl = new URL('/login', request.url);
+    if (pathname !== '/') loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // 7) admin: ถ้า login แล้วแต่ไม่ใช่ admin → เด้งไป dashboard (ค่อยเช็ค role)
+  if (isAdminRoute && user) {
     try {
-      // Get user profile with role
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      // If not admin, redirect to dashboard
       if (!profile || profile.role !== 'admin') {
         const dashboardUrl = new URL('/dashboard', request.url);
         return NextResponse.redirect(dashboardUrl);
       }
-    } catch (error) {
-      console.error('Error checking user role:', error);
-      // On error, redirect to dashboard
+    } catch {
       const dashboardUrl = new URL('/dashboard', request.url);
       return NextResponse.redirect(dashboardUrl);
     }
@@ -117,14 +106,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - api routes (handled separately)
-     */
+    // คง matcher เดิมไว้
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

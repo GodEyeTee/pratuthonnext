@@ -8,21 +8,23 @@ import {
 } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
-// Hook หลัก: ได้ locale ปัจจุบัน + ฟังก์ชันเปลี่ยนภาษา + t (root)
 export function useLocale() {
   const router = useRouter();
   const locale = useNextIntlLocale() as Locale;
-  const tAll = useTranslations(); // ใช้คีย์เต็มแบบ 'dashboard.overview' ได้
+  const tAll = useTranslations();
 
   async function setLocale(next: Locale) {
+    // วิธีที่ชัวร์สุด: hard navigation ให้ route ตั้ง cookie แล้วเด้งกลับ
+    if (typeof window !== 'undefined') {
+      window.location.assign(`/locale?lang=${next}`);
+      return;
+    }
+    // fallback ถ้าเรียกจาก env แปลก ๆ
     await fetch(`/locale?lang=${next}`, { method: 'GET' });
     router.refresh();
   }
 
-  // ให้ t ตรง signature เดิม
   const t = (key: string) => tAll(key as any);
-
-  // ดึง messages ทั้งก้อน (อาจเป็น unknown) — cast เป็น TranslationNamespace ถ้าคีย์ตรง
   const translations = useMessages() as unknown as TranslationNamespace;
 
   return {
@@ -35,14 +37,10 @@ export function useLocale() {
   };
 }
 
-// เหมือนเดิมแต่พิง next-intl
 export function useTranslation() {
   const { locale, t, translations } = useLocale();
-
-  // convenience functions mapping namespace
   const ns = (name: keyof TranslationNamespace) => (key: string) =>
     t(`${name}.${key}`);
-
   return {
     t,
     locale,
@@ -55,10 +53,8 @@ export function useTranslation() {
   };
 }
 
-// ปุ่มสลับภาษา
 export function useLanguageSwitcher() {
   const { locale, setLocale } = useLocale();
-
   return {
     currentLocale: locale,
     switchToThai: () => setLocale('th'),
@@ -70,11 +66,9 @@ export function useLanguageSwitcher() {
   };
 }
 
-// ฟอร์แมตตาม locale ปัจจุบัน
 export function useFormatting() {
   const locale = useNextIntlLocale() as Locale;
   const fmt = (loc: Locale) => (loc === 'th' ? 'th-TH' : 'en-US');
-
   const toDate = (d: Date | string) =>
     typeof d === 'string' ? new Date(d) : d;
 
@@ -126,7 +120,7 @@ export function useFormatting() {
   };
 }
 
-// HOC เก่าที่อาจโดน import ไว้ที่ไหน — ให้เป็น no-op เพื่อกันแตก
+// HOC รุ่นกันแตก ถ้ามีที่ไหน import ไว้
 export function withLocale<P extends object>(
   Component: React.ComponentType<P>
 ) {

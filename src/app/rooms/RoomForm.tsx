@@ -4,23 +4,25 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { useNotifications } from '@/hooks/useToast';
 import { createClient } from '@/lib/supabase/client';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface RoomData {
   id: string;
   number: string;
-  type: string;
+  type: 'standard' | 'deluxe' | 'suite';
   floor: number;
-  status: string;
+  status: 'available' | 'occupied' | 'maintenance' | 'reserved';
   rate_daily: number;
   rate_monthly: number;
   water_rate: number;
   electric_rate: number;
-  size?: number;
-  description?: string;
+  size?: number | null;
+  description?: string | null;
 }
 
 interface RoomFormProps {
@@ -43,12 +45,14 @@ interface FormData {
 export default function RoomForm({ room }: RoomFormProps) {
   const router = useRouter();
   const supabase = createClient();
+  const t = useTranslations('rooms');
+  const { success, error } = useNotifications();
 
   const [form, setForm] = useState<FormData>({
     number: room?.number ?? '',
-    type: (room?.type as FormData['type']) ?? 'standard',
+    type: room?.type ?? 'standard',
     floor: room?.floor?.toString() ?? '1',
-    status: (room?.status as FormData['status']) ?? 'available',
+    status: room?.status ?? 'available',
     rateDaily: room?.rate_daily?.toString() ?? '',
     rateMonthly: room?.rate_monthly?.toString() ?? '',
     waterRate: room?.water_rate?.toString() ?? '18',
@@ -74,22 +78,18 @@ export default function RoomForm({ room }: RoomFormProps) {
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-
     if (!form.number.trim()) newErrors.number = 'กรุณาระบุหมายเลขห้อง';
     if (!form.rateDaily) newErrors.rateDaily = 'กรุณาระบุราคารายวัน';
     if (!form.rateMonthly) newErrors.rateMonthly = 'กรุณาระบุราคารายเดือน';
     if (!form.waterRate) newErrors.waterRate = 'กรุณาระบุค่าน้ำ';
     if (!form.electricRate) newErrors.electricRate = 'กรุณาระบุค่าไฟ';
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validate()) return;
-
     setLoading(true);
 
     try {
@@ -107,35 +107,33 @@ export default function RoomForm({ room }: RoomFormProps) {
       };
 
       if (room) {
-        const { error } = await supabase
+        const { error: e1 } = await supabase
           .from('rooms')
           .update(roomData)
           .eq('id', room.id);
-
-        if (error) throw error;
+        if (e1) throw e1;
+        success(t('roomDetails'), 'อัปเดตห้องสำเร็จ');
       } else {
-        const { error } = await supabase.from('rooms').insert(roomData);
-
-        if (error) throw error;
+        const { error: e2 } = await supabase.from('rooms').insert(roomData);
+        if (e2) throw e2;
+        success(t('addRoom'), 'เพิ่มห้องสำเร็จ');
       }
 
       router.push('/rooms');
       router.refresh();
-    } catch (error) {
-      console.error('Error saving room:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    } catch (err) {
+      console.error('Error saving room:', err);
+      error('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card className="max-w-2xl mx-auto">
+    <Card className="bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>
-            {room ? 'แก้ไขข้อมูลห้องพัก' : 'เพิ่มห้องพักใหม่'}
-          </CardTitle>
+          <CardTitle>{room ? 'แก้ไขข้อมูลห้องพัก' : t('addRoom')}</CardTitle>
           {room && <Badge variant="outline">ห้อง {room.number}</Badge>}
         </div>
       </CardHeader>
@@ -162,7 +160,8 @@ export default function RoomForm({ room }: RoomFormProps) {
                   name="type"
                   value={form.type}
                   onChange={handleChange}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm
+                             dark:[color-scheme:dark]"
                 >
                   <option value="standard">มาตรฐาน</option>
                   <option value="deluxe">ดีลักซ์</option>
@@ -188,7 +187,8 @@ export default function RoomForm({ room }: RoomFormProps) {
                   name="status"
                   value={form.status}
                   onChange={handleChange}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm
+                             dark:[color-scheme:dark]"
                 >
                   <option value="available">ว่าง</option>
                   <option value="occupied">มีผู้เช่า</option>
@@ -224,7 +224,6 @@ export default function RoomForm({ room }: RoomFormProps) {
                 min="0"
                 step="0.01"
               />
-
               <Input
                 label="ราคารายเดือน (บาท)"
                 name="rateMonthly"
@@ -236,7 +235,6 @@ export default function RoomForm({ room }: RoomFormProps) {
                 min="0"
                 step="0.01"
               />
-
               <Input
                 label="ค่าน้ำ (บาท/หน่วย)"
                 name="waterRate"
@@ -248,7 +246,6 @@ export default function RoomForm({ room }: RoomFormProps) {
                 min="0"
                 step="0.01"
               />
-
               <Input
                 label="ค่าไฟ (บาท/หน่วย)"
                 name="electricRate"
@@ -277,7 +274,7 @@ export default function RoomForm({ room }: RoomFormProps) {
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4 border-t">
+          <div className="flex justify-end gap-2 pt-4 border-t dark:border-gray-800">
             <Button
               type="button"
               variant="ghost"
@@ -290,13 +287,12 @@ export default function RoomForm({ room }: RoomFormProps) {
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />{' '}
                   กำลังบันทึก...
                 </>
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" />
-                  บันทึก
+                  <Save className="mr-2 h-4 w-4" /> บันทึก
                 </>
               )}
             </Button>
