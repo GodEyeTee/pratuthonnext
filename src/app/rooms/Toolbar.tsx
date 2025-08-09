@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/Button';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useTransition } from 'react';
 
-// debounce เล็ก ๆ แทนการติดตั้งแพ็กเกจ
+// debounce ง่าย ๆ ไม่ต้องติดตั้งแพ็กเกจ
 function useDebouncedCallback<T extends (...args: any[]) => void>(
   fn: T,
   delay = 300
@@ -37,29 +37,34 @@ export default function RoomsToolbar() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const setParam = (key: string, value?: string) => {
     const p = new URLSearchParams(params.toString());
     if (value && value.length) p.set(key, value);
     else p.delete(key);
     if (key !== 'page') p.delete('page');
-    router.push(`${pathname}?${p.toString()}`);
+    startTransition(() => router.replace(`${pathname}?${p.toString()}`));
   };
 
   const onSearch = useDebouncedCallback((v: string) => setParam('q', v), 300);
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      aria-busy={isPending}
+    >
       <div className="flex flex-1 items-center gap-2">
         <input
           defaultValue={params.get('q') ?? ''}
           onChange={e => onSearch(e.target.value)}
           placeholder={tCommon('search')}
-          className="w-full sm:max-w-xs h-10 px-3 rounded-md border bg-background"
+          className="w-full sm:max-w-xs h-10 px-3 rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-orange-500"
           aria-label="Search rooms"
         />
+
         <select
-          className="h-10 px-3 rounded-md border bg-background"
+          className="h-10 px-3 rounded-md border bg-background dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-orange-500"
           value={params.get('status') ?? ''}
           onChange={e => setParam('status', e.target.value || undefined)}
           aria-label="Filter by status"
@@ -70,8 +75,9 @@ export default function RoomsToolbar() {
           <option value="maintenance">{tRooms('maintenance')}</option>
           <option value="reserved">Reserved</option>
         </select>
+
         <select
-          className="h-10 px-3 rounded-md border bg-background"
+          className="h-10 px-3 rounded-md border bg-background dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-orange-500"
           value={params.get('type') ?? ''}
           onChange={e => setParam('type', e.target.value || undefined)}
           aria-label="Filter by type"

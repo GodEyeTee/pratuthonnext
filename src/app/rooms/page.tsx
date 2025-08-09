@@ -40,65 +40,67 @@ export default async function RoomsPage({
   const status = sp.status;
   const type = sp.type;
   const floor = sp.floor ? Number(sp.floor) : undefined;
+
   const page = Math.max(1, Number(sp.page || 1));
   const pageSize = 12;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase.from('rooms').select('*', { count: 'exact' });
-  if (status) query = query.eq('status', status);
-  if (type) query = query.eq('type', type);
-  if (!Number.isNaN(floor as number) && typeof floor === 'number')
-    query = query.eq('floor', floor);
-  if (q) query = query.or(`number.ilike.%${q}%,description.ilike.%${q}%`);
+  // ---------- List query (count แบบ estimated เพื่อลื่นขึ้น)
+  let listQuery = supabase
+    .from('rooms')
+    .select('*', { count: 'estimated' as const });
 
-  const { data: rooms, count } = await query
+  if (status) listQuery = listQuery.eq('status', status);
+  if (type) listQuery = listQuery.eq('type', type);
+  if (!Number.isNaN(floor as number) && typeof floor === 'number') {
+    listQuery = listQuery.eq('floor', floor);
+  }
+  if (q) {
+    listQuery = listQuery.or(`number.ilike.%${q}%,description.ilike.%${q}%`);
+  }
+
+  const { data: rooms, count } = await listQuery
     .order('number', { ascending: true })
     .range(from, to);
 
-  const [
-    { count: totalAll },
-    { count: totalAvail },
-    { count: totalOcc },
-    { count: totalMaint },
-  ] = await Promise.all([
-    supabase.from('rooms').select('*', { count: 'exact', head: true }),
-    supabase
-      .from('rooms')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'available'),
-    supabase
-      .from('rooms')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'occupied'),
-    supabase
-      .from('rooms')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'maintenance'),
-  ]);
+  // ---------- Stats via RPC (ครั้งเดียว)
+  const { data: statsData } = await supabase.rpc('rooms_stats_filtered', {
+    p_q: q || null,
+    p_status: status || null,
+    p_type: type || null,
+    p_floor: typeof floor === 'number' ? floor : null,
+  });
+
+  const totals = statsData?.[0] ?? {
+    total: 0,
+    available: 0,
+    occupied: 0,
+    maintenance: 0,
+  };
 
   const stats = [
     {
       label: t('title'),
-      value: totalAll || 0,
+      value: totals.total,
       icon: Home,
       color: 'from-blue-500 to-blue-600',
     },
     {
       label: t('available'),
-      value: totalAvail || 0,
+      value: totals.available,
       icon: Users,
       color: 'from-green-500 to-green-600',
     },
     {
       label: t('occupied'),
-      value: totalOcc || 0,
+      value: totals.occupied,
       icon: Calendar,
       color: 'from-amber-500 to-amber-600',
     },
     {
       label: t('maintenance'),
-      value: totalMaint || 0,
+      value: totals.maintenance,
       icon: Wrench,
       color: 'from-red-500 to-red-600',
     },
@@ -129,11 +131,9 @@ export default async function RoomsPage({
   const typeBadge = (tp: string) => {
     switch (tp) {
       case 'standard':
-        return <Badge variant="outline">standard</Badge>;
       case 'deluxe':
-        return <Badge variant="outline">deluxe</Badge>;
       case 'suite':
-        return <Badge variant="outline">suite</Badge>;
+        return <Badge variant="outline">{tp}</Badge>;
       default:
         return <Badge variant="outline">{tp}</Badge>;
     }
@@ -175,9 +175,9 @@ export default async function RoomsPage({
         <Card className="bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t('roomList')}</CardTitle>
-            {/* ใช้ป็อปอัปแทนการลิงก์ */}
             <AddRoomModal />
           </CardHeader>
+
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
@@ -199,7 +199,7 @@ export default async function RoomsPage({
                 </TableHeader>
                 <TableBody>
                   {(rooms?.length ?? 0) > 0 ? (
-                    rooms!.map(room => (
+                    rooms!.map((room: any) => (
                       <TableRow key={room.id} className="dark:border-gray-800">
                         <TableCell className="font-medium">
                           {room.number}
