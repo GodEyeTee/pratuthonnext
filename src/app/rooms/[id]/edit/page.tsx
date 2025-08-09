@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import RoomForm from '../../RoomForm';
+import RoomForm from '../../components/RoomForm';
 
 interface EditRoomPageProps {
   params: { id: string };

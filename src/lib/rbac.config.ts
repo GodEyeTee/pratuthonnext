@@ -1,6 +1,11 @@
 /**
- * RBAC Configuration and Business Logic
- * Clean Architecture - Domain Layer
+ * Updated RBAC configuration and helpers.
+ *
+ * This file defines the roles, permissions and protected routes used by the
+ * application. It replaces the previous version to tighten access controls
+ * so that only `admin` and `support` roles may access administrative pages
+ * like the dashboard, rooms, tenants and bookings. Regular users are limited
+ * to profile management only.
  */
 
 import type {
@@ -8,19 +13,23 @@ import type {
   ProtectedRoute,
   RolePermissions,
   UserRole,
-} from '@/types/rbac';
+} from '../types/rbac';
 
-// Default role for new users
+// -----------------------------------------------------------------------------
+// Role definitions and hierarchy
+//
+// Roles are ordered by privilege. Higher numbers indicate more privileges.
 export const DEFAULT_USER_ROLE: UserRole = 'user';
 
-// Role hierarchy (higher number = more privileges)
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   admin: 3,
   support: 2,
   user: 1,
 };
 
-// All available permissions
+// List all possible permissions in the system. These are used by the UI and
+// helper functions for type safety. When adding new features, append
+// additional permissions here.
 export const ALL_PERMISSIONS: Permission[] = [
   'users:read',
   'users:create',
@@ -46,7 +55,11 @@ export const ALL_PERMISSIONS: Permission[] = [
   'bookings:delete',
 ];
 
-// Role-based permissions mapping
+// -----------------------------------------------------------------------------
+// Role to permission mapping
+//
+// Define which permissions belong to each role. Users with a given role will
+// automatically inherit all of the permissions in its list.
 export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
   admin: {
     role: 'admin',
@@ -90,6 +103,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       'dashboard:user',
       'settings:read',
       'reports:read',
+      // Support staff can view and update rooms and bookings but cannot delete them.
       'rooms:read',
       'rooms:update',
       'bookings:read',
@@ -107,18 +121,21 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       'profile:read',
       'profile:update',
       'dashboard:user',
-      'rooms:read',
-      'bookings:read',
-      'bookings:create',
+      // ผู้ใช้ทั่วไปไม่ได้รับสิทธิ์ rooms:* หรือ bookings:* อีกต่อไป
     ],
     description: {
-      th: 'ผู้เช่า - สามารถจองห้องพัก จัดการโปรไฟล์ และดูประวัติการจอง',
-      en: 'Tenant - Can book rooms, manage profile, and view booking history',
+      th: 'ผู้เช่า - สามารถจัดการโปรไฟล์ของตนเอง',
+      en: 'Tenant - Can manage their own profile',
     },
   },
 };
 
-// Protected routes configuration
+// -----------------------------------------------------------------------------
+// Route protection
+//
+// Declare which roles may access a given route. These rules are enforced in
+// middleware and can also be used in the UI to hide links from users who do
+// not have access.
 export const PROTECTED_ROUTES: ProtectedRoute[] = [
   {
     path: '/admin',
@@ -147,7 +164,7 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   },
   {
     path: '/dashboard',
-    allowedRoles: ['admin', 'support', 'user'],
+    allowedRoles: ['admin', 'support'],
     requiredPermissions: ['dashboard:user'],
   },
   {
@@ -162,201 +179,133 @@ export const PROTECTED_ROUTES: ProtectedRoute[] = [
   },
   {
     path: '/rooms',
-    allowedRoles: ['admin', 'support', 'user'],
+    allowedRoles: ['admin', 'support'],
+    requiredPermissions: ['rooms:read'],
+  },
+  {
+    path: '/tenants',
+    allowedRoles: ['admin', 'support'],
     requiredPermissions: ['rooms:read'],
   },
   {
     path: '/bookings',
-    allowedRoles: ['admin', 'support', 'user'],
+    allowedRoles: ['admin', 'support'],
     requiredPermissions: ['bookings:read'],
   },
 ];
 
-// Public routes (no auth required)
-export const PUBLIC_ROUTES = ['/', '/about', '/contact', '/terms', '/privacy'];
+// Publicly accessible routes that do not require authentication.
+export const PUBLIC_ROUTES: string[] = [
+  '/',
+  '/about',
+  '/contact',
+  '/terms',
+  '/privacy',
+];
 
-// Auth routes (redirect to dashboard if logged in)
-export const AUTH_ROUTES = [
+// Routes used for authentication. If a logged in user visits these, they will
+// be redirected based on their role.
+export const AUTH_ROUTES: string[] = [
   '/login',
   '/register',
   '/forgot-password',
   '/reset-password',
 ];
 
-// Route redirects based on role
+// After a user logs in, redirect them based on their role. Users and support
+// staff go to `/dashboard`; admins go to `/admin`.
 export const ROLE_REDIRECTS: Record<UserRole, string> = {
   admin: '/admin',
   support: '/dashboard',
   user: '/dashboard',
 };
 
-// Permission groups for easier management
-export const PERMISSION_GROUPS = {
+// Permission groups provide convenient groupings for the UI (e.g. to build
+// permission checkboxes). They mirror ALL_PERMISSIONS but grouped by domain.
+export const PERMISSION_GROUPS: Record<string, Permission[]> = {
   USER_MANAGEMENT: [
     'users:read',
     'users:create',
     'users:update',
     'users:delete',
-  ] as Permission[],
-  PROFILE_MANAGEMENT: ['profile:read', 'profile:update'] as Permission[],
-  DASHBOARD_ACCESS: [
-    'dashboard:admin',
-    'dashboard:support',
-    'dashboard:user',
-  ] as Permission[],
-  SETTINGS_MANAGEMENT: ['settings:read', 'settings:update'] as Permission[],
-  REPORTS_MANAGEMENT: [
-    'reports:read',
-    'reports:create',
-    'reports:delete',
-  ] as Permission[],
+  ],
+  PROFILE_MANAGEMENT: ['profile:read', 'profile:update'],
+  DASHBOARD_ACCESS: ['dashboard:admin', 'dashboard:support', 'dashboard:user'],
+  SETTINGS_MANAGEMENT: ['settings:read', 'settings:update'],
+  REPORTS_MANAGEMENT: ['reports:read', 'reports:create', 'reports:delete'],
   ROOM_MANAGEMENT: [
     'rooms:read',
     'rooms:create',
     'rooms:update',
     'rooms:delete',
-  ] as Permission[],
+  ],
   BOOKING_MANAGEMENT: [
     'bookings:read',
     'bookings:create',
     'bookings:update',
     'bookings:delete',
-  ] as Permission[],
+  ],
 };
 
-// Role display colors and icons
-export const ROLE_DISPLAY = {
-  admin: {
-    color: 'red',
-    bgColor: 'bg-red-100',
-    textColor: 'text-red-800',
-    borderColor: 'border-red-200',
-    icon: '👑',
-    badge: 'Admin',
-  },
-  support: {
-    color: 'blue',
-    bgColor: 'bg-blue-100',
-    textColor: 'text-blue-800',
-    borderColor: 'border-blue-200',
-    icon: '🛠️',
-    badge: 'Support',
-  },
-  user: {
-    color: 'green',
-    bgColor: 'bg-green-100',
-    textColor: 'text-green-800',
-    borderColor: 'border-green-200',
-    icon: '👤',
-    badge: 'User',
-  },
-} as const;
+// Optional: specify display information for roles (colour and icon name). This
+// can be consumed by the UI to draw badges or pills. Icons should be mapped
+// separately in the UI layer.
+export const ROLE_DISPLAY: Record<UserRole, { color: string; label: string }> =
+  {
+    admin: { color: 'red', label: 'Admin' },
+    support: { color: 'blue', label: 'Support' },
+    user: { color: 'green', label: 'User' },
+  };
 
+// -----------------------------------------------------------------------------
 // Utility functions
+//
+// Determine if the given role includes a specific permission.
 export function hasPermission(
   userRole: UserRole,
   permission: Permission
 ): boolean {
-  return ROLE_PERMISSIONS[userRole]?.permissions.includes(permission) ?? false;
+  const perms = ROLE_PERMISSIONS[userRole]?.permissions ?? [];
+  return perms.includes(permission);
 }
 
+// Determine if the role includes any of the given permissions.
 export function hasAnyPermission(
   userRole: UserRole,
   permissions: Permission[]
 ): boolean {
-  return permissions.some(permission => hasPermission(userRole, permission));
+  return permissions.some(p => hasPermission(userRole, p));
 }
 
+// Determine if the role includes all of the given permissions.
 export function hasAllPermissions(
   userRole: UserRole,
   permissions: Permission[]
 ): boolean {
-  return permissions.every(permission => hasPermission(userRole, permission));
+  return permissions.every(p => hasPermission(userRole, p));
 }
 
+// Check whether the user is allowed to access a route. This will match the
+// beginning of the route (so `/rooms/123` matches `/rooms`). If the route is
+// not listed in PROTECTED_ROUTES, it is considered public (other middleware
+// should handle authentication).
 export function canAccessRoute(userRole: UserRole, route: string): boolean {
   const protectedRoute = PROTECTED_ROUTES.find(r => route.startsWith(r.path));
-
-  if (!protectedRoute) {
-    // If route is not in protected routes, check if it's public
-    return (
-      PUBLIC_ROUTES.includes(route) ||
-      PUBLIC_ROUTES.some(publicRoute => route.startsWith(publicRoute))
-    );
-  }
-
-  // Check role access
-  if (!protectedRoute.allowedRoles.includes(userRole)) {
-    return false;
-  }
-
-  // Check permissions if specified
-  if (protectedRoute.requiredPermissions) {
-    return hasAllPermissions(userRole, protectedRoute.requiredPermissions);
-  }
-
-  return true;
+  if (!protectedRoute) return true;
+  return protectedRoute.allowedRoles.includes(userRole);
 }
 
+// Get the numeric privilege level for a role. Unknown roles return 0.
 export function getRoleHierarchyLevel(role: UserRole): number {
   return ROLE_HIERARCHY[role] ?? 0;
 }
 
+// Determine if `managerRole` can manage `targetRole`. Only roles with higher
+// hierarchy can manage lower roles. Admin can manage all, support can manage
+// users, and users can manage no roles.
 export function canManageRole(
   managerRole: UserRole,
   targetRole: UserRole
 ): boolean {
   return getRoleHierarchyLevel(managerRole) > getRoleHierarchyLevel(targetRole);
-}
-
-// Room-specific permissions (for room rental system)
-export const ROOM_STATUS = {
-  AVAILABLE: 'available',
-  OCCUPIED: 'occupied',
-  MAINTENANCE: 'maintenance',
-  RESERVED: 'reserved',
-} as const;
-
-export const BOOKING_STATUS = {
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  CHECKED_IN: 'checked_in',
-  CHECKED_OUT: 'checked_out',
-  CANCELLED: 'cancelled',
-} as const;
-
-export const RENTAL_TYPE = {
-  DAILY: 'daily',
-  MONTHLY: 'monthly',
-} as const;
-
-// Business rules
-export class RoomRentalRules {
-  static canManageRooms(userRole: UserRole): boolean {
-    return hasPermission(userRole, 'rooms:update');
-  }
-
-  static canManageBookings(userRole: UserRole): boolean {
-    return ['admin', 'support'].includes(userRole);
-  }
-
-  static canViewAllBookings(userRole: UserRole): boolean {
-    return ['admin', 'support'].includes(userRole);
-  }
-
-  static canCreateBooking(userRole: UserRole): boolean {
-    return hasPermission(userRole, 'bookings:create');
-  }
-
-  static canCancelBooking(userRole: UserRole, isOwnBooking: boolean): boolean {
-    return userRole === 'admin' || userRole === 'support' || isOwnBooking;
-  }
-
-  static canUpdateRoom(userRole: UserRole): boolean {
-    return hasPermission(userRole, 'rooms:update');
-  }
-
-  static canViewReports(userRole: UserRole): boolean {
-    return hasPermission(userRole, 'reports:read');
-  }
 }

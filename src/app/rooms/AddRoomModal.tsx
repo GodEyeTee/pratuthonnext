@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Plus, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import RoomForm from './RoomForm';
+import RoomForm from './components/RoomForm';
 
 export default function AddRoomModal({
   triggerClassName,
