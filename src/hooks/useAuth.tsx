@@ -6,12 +6,11 @@ import {
   hasPermission,
 } from '@/lib/rbac.config';
 import { clearUserContext, setUserContext } from '@/lib/sentry.utils';
+import { createClient } from '@/lib/supabase/client';
 import type { Permission, UserRole, UserWithRole } from '@/types/rbac';
-import { createBrowserClient } from '@supabase/ssr';
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState } from 'react';
 
-// Auth Context Types
 interface AuthContextType {
   user: UserWithRole | null;
   session: Session | null;
@@ -26,43 +25,120 @@ interface AuthContextType {
   hasAllPermissions: (permissions: Permission[]) => boolean;
 }
 
-// Create Auth Context
+type ProfileRow = {
+  id: string;
+  email: string | null;
+  role: UserRole | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Auth Provider Component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const supabase = createClient();
+
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  // -------- helpers --------
+  const selectProfileById = async (uid: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,email,role,display_name,avatar_url,created_at,updated_at')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error) console.warn('[profiles by id] ', error.message);
+    return data as ProfileRow | null;
+  };
 
-  // Fetch user with role information
+  const selectProfileByEmail = async (email: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,email,role,display_name,avatar_url,created_at,updated_at')
+      .eq('email', email)
+      .maybeSingle();
+    if (error) console.warn('[profiles by email] ', error.message);
+    return data as ProfileRow | null;
+  };
+
+  const insertDefaultProfile = async (authUser: User) => {
+    const payload = {
+      id: authUser.id,
+      email: authUser.email,
+      role: 'user' as UserRole,
+      display_name:
+        (authUser.user_metadata?.full_name as string | undefined) ??
+        (authUser.user_metadata?.name as string | undefined) ??
+        null,
+      avatar_url:
+        (authUser.user_metadata?.avatar_url as string | undefined) ??
+        (authUser.user_metadata?.picture as string | undefined) ??
+        null,
+    };
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert(payload)
+      .select('id,email,role,display_name,avatar_url,created_at,updated_at')
+      .single();
+    if (error) {
+      console.warn('[profiles insert] ', error.message);
+      return null;
+    }
+    return data as ProfileRow;
+  };
+
   const fetchUserWithRole = async (
     authUser: User
   ): Promise<UserWithRole | null> => {
     try {
-      // Get user role from metadata or default to 'user'
-      const role = (authUser.user_metadata?.role as UserRole) || 'user';
+      // 1) หาจาก id ก่อน
+      let profile = await selectProfileById(authUser.id);
+
+      // 2) ถ้าไม่เจอและมีอีเมล ลองหาโดย email (กันกรณี id mismatch)
+      if (!profile && authUser.email) {
+        profile = await selectProfileByEmail(authUser.email);
+      }
+
+      // 3) ถ้าไม่เจอจริง ๆ ค่อยสร้างแถวเริ่มต้น (role=user)
+      if (!profile) {
+        profile = await insertDefaultProfile(authUser);
+      }
+
+      // 4) รวมข้อมูล (fallback ไป metadata ถ้าจำเป็น)
+      const role: UserRole =
+        (profile?.role as UserRole | null) ??
+        (authUser.user_metadata?.role as UserRole | undefined) ??
+        (authUser.app_metadata?.role as UserRole | undefined) ??
+        'user';
+
+      const name =
+        profile?.display_name ??
+        (authUser.user_metadata?.full_name as string | undefined) ??
+        (authUser.user_metadata?.name as string | undefined);
+
+      const avatar_url =
+        profile?.avatar_url ??
+        (authUser.user_metadata?.avatar_url as string | undefined) ??
+        (authUser.user_metadata?.picture as string | undefined);
 
       const userWithRole: UserWithRole = {
         id: authUser.id,
-        email: authUser.email!,
+        email: authUser.email || '',
         role,
-        name: authUser.user_metadata?.full_name || authUser.user_metadata?.name,
-        avatar_url:
-          authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture,
-        created_at: authUser.created_at,
-        updated_at: authUser.updated_at || authUser.created_at,
+        name,
+        avatar_url,
+        created_at: profile?.created_at || authUser.created_at,
+        updated_at:
+          profile?.updated_at || authUser.updated_at || authUser.created_at,
         email_verified: !!authUser.email_confirmed_at,
-        last_sign_in_at: authUser.last_sign_in_at,
+        last_sign_in_at: authUser.last_sign_in_at || undefined,
       };
 
-      // Set Sentry user context
       setUserContext({
         id: userWithRole.id,
         email: userWithRole.email,
@@ -70,39 +146,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       return userWithRole;
-    } catch (error) {
-      console.error('Error fetching user role:', error);
+    } catch (e) {
+      console.error('fetchUserWithRole error:', e);
       return null;
     }
   };
 
-  // Refresh user data
   const refreshUser = async () => {
     try {
       setLoading(true);
-      const {
-        data: { user: authUser },
-        error,
-      } = await supabase.auth.getUser();
+      const { data, error: uErr } = await supabase.auth.getUser();
+      if (uErr) throw uErr;
 
-      if (error) {
-        throw error;
-      }
-
+      const authUser = data.user;
       if (authUser) {
-        const userWithRole = await fetchUserWithRole(authUser);
-        setUser(userWithRole);
+        const u = await fetchUserWithRole(authUser);
+        setUser(u);
+        setError(null);
       } else {
         setUser(null);
         clearUserContext();
       }
-
-      setError(null);
-    } catch (error) {
-      console.error('Error refreshing user:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to refresh user'
-      );
+    } catch (e) {
+      console.error('refreshUser error:', e);
+      setError(e instanceof Error ? e.message : 'Failed to refresh user');
       setUser(null);
       clearUserContext();
     } finally {
@@ -110,125 +177,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign out function
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw error;
-      }
-
+      const { error: soErr } = await supabase.auth.signOut();
+      if (soErr) throw soErr;
       setUser(null);
       setSession(null);
       clearUserContext();
-
-      // Redirect to login page
       window.location.href = '/login';
-    } catch (error) {
-      console.error('Error signing out:', error);
-      setError(error instanceof Error ? error.message : 'Failed to sign out');
+    } catch (e) {
+      console.error('signOut error:', e);
+      setError(e instanceof Error ? e.message : 'Failed to sign out');
     } finally {
       setLoading(false);
     }
   };
 
-  // Permission checking functions
-  const checkRole = (role: UserRole): boolean => {
-    return user?.role === role;
-  };
-
-  const checkRoles = (roles: UserRole[]): boolean => {
-    return user ? roles.includes(user.role) : false;
-  };
-
-  const checkPermission = (permission: Permission): boolean => {
-    return user ? hasPermission(user.role, permission) : false;
-  };
-
-  const checkAnyPermission = (permissions: Permission[]): boolean => {
-    return user ? hasAnyPermission(user.role, permissions) : false;
-  };
-
-  const checkAllPermissions = (permissions: Permission[]): boolean => {
-    return user ? hasAllPermissions(user.role, permissions) : false;
-  };
-
-  // Initialize auth state
+  // -------- init & listeners --------
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
+    (async () => {
       try {
-        // Get initial session
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
+        const { data, error: sErr } = await supabase.auth.getSession();
+        if (sErr) throw sErr;
 
-        if (sessionError) {
-          throw sessionError;
+        if (!mounted) return;
+        setSession(data.session || null);
+
+        if (data.session?.user) {
+          const u = await fetchUserWithRole(data.session.user);
+          if (!mounted) return;
+          setUser(u);
+        } else {
+          setUser(null);
+          clearUserContext();
         }
-
-        if (mounted) {
-          setSession(session);
-
-          if (session?.user) {
-            const userWithRole = await fetchUserWithRole(session.user);
-            setUser(userWithRole);
-          } else {
-            setUser(null);
-            clearUserContext();
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+      } catch (e) {
+        console.error('initialize auth error:', e);
         if (mounted) {
           setError(
-            error instanceof Error ? error.message : 'Failed to initialize auth'
+            e instanceof Error ? e.message : 'Failed to initialize auth'
           );
           setUser(null);
           setSession(null);
           clearUserContext();
         }
       } finally {
-        if (mounted) {
-          setLoading(false);
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      async (event, sess) => {
+        if (!mounted) return;
+        setSession(sess || null);
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (sess?.user) {
+            const u = await fetchUserWithRole(sess.user);
+            setUser(u);
+          }
+          setError(null);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          clearUserContext();
+          setError(null);
         }
       }
-    };
-
-    initializeAuth();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
-
-      if (!mounted) return;
-
-      setSession(session);
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) {
-          const userWithRole = await fetchUserWithRole(session.user);
-          setUser(userWithRole);
-        }
-        setError(null);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        clearUserContext();
-        setError(null);
-      }
-    });
+    );
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      sub.subscription.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // -------- permission helpers --------
+  const checkRole = (role: UserRole) => user?.role === role;
+  const checkRoles = (roles: UserRole[]) =>
+    user ? roles.includes(user.role) : false;
+  const checkPermission = (permission: Permission) =>
+    user ? hasPermission(user.role, permission) : false;
+  const checkAnyPermission = (permissions: Permission[]) =>
+    user ? hasAnyPermission(user.role, permissions) : false;
+  const checkAllPermissions = (permissions: Permission[]) =>
+    user ? hasAllPermissions(user.role, permissions) : false;
 
   const value: AuthContextType = {
     user,
@@ -247,16 +283,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// useAuth Hook
+// ------------ hooks ------------
 export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 }
 
-// Role-specific hooks
 export function useRole(): UserRole | null {
   const { user } = useAuth();
   return user?.role || null;
@@ -274,13 +307,11 @@ export function useIsSupport(): boolean {
 
 export function useIsUser(): boolean {
   const { user } = useAuth();
-  return !!user; // Any authenticated user
+  return !!user;
 }
 
-// Permission hooks
 export function usePermissions() {
   const { hasPermission, hasAnyPermission, hasAllPermissions } = useAuth();
-
   return {
     hasPermission,
     hasAnyPermission,
@@ -296,10 +327,8 @@ export function usePermissions() {
   };
 }
 
-// User info hooks
 export function useUserInfo() {
   const { user } = useAuth();
-
   return {
     user,
     displayName: user?.name || user?.email?.split('@')[0] || 'User',

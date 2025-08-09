@@ -24,13 +24,22 @@ export default function RoomActions({
     if (!confirm(`ยืนยันการลบห้อง ${number}?`)) return;
     setLoading(true);
     try {
-      const { error: e1 } = await supabase.from('rooms').delete().eq('id', id);
-      if (e1) throw e1;
+      const { error: deleteError } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+        error('ลบไม่สำเร็จ', deleteError.message || 'ไม่มีสิทธิ์ลบห้อง');
+        return;
+      }
+
       success('ลบสำเร็จ', `ลบห้อง ${number} แล้ว`);
       startTransition(() => router.refresh());
-    } catch (e) {
-      console.error(e);
-      error('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาดในการลบ');
+    } catch (e: any) {
+      console.error('Error:', e);
+      error('ลบไม่สำเร็จ', e?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setLoading(false);
     }

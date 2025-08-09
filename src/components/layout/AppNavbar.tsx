@@ -18,11 +18,12 @@ import { useEffect, useRef, useState } from 'react';
 type Props = {
   title?: string;
   subtitle?: string;
-  rightExtra?: React.ReactNode; // เผื่ออยากใส่ LanguageToggle ที่หัวบาร์
+  rightExtra?: React.ReactNode;
 };
 
 export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
   const { user } = useAuth();
+  console.log('user', user?.role);
   const tNav = useTranslations('navigation');
   const tAuth = useTranslations('auth');
   const locale = useNextIntlLocale();
@@ -81,7 +82,6 @@ export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
           {/* Right */}
           <div className="flex items-center gap-3">
             {rightExtra}
-
             {/* Search */}
             <div className="hidden md:flex items-center">
               <div className="relative">
@@ -102,7 +102,6 @@ export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
                 />
               </div>
             </div>
-
             {/* Notifications */}
             <div className="relative" ref={notifRef}>
               <button
@@ -142,7 +141,6 @@ export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
                 </GlassPopover>
               )}
             </div>
-
             {/* Profile */}
             <div className="relative" ref={profileRef}>
               <button
@@ -220,12 +218,12 @@ function GlassPopover({
       className={cn(
         'absolute rounded-2xl overflow-hidden',
         // พื้นแก้ว
-        'bg-white/10 dark:bg-white/5 supports-[backdrop-filter]:bg-white/10',
+        'bg-white/20 dark:bg-white/5 supports-[backdrop-filter]:bg-white/20',
         'backdrop-blur-2xl',
         // เส้นขอบ/เงา
-        'ring-1 ring-white/30 dark:ring-white/10 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.45)]',
+        'ring-0.8 ring-white/30 dark:ring-white/10 shadow-[0_10px_30px_-22px_rgba(0,0,0,0.45)]',
         // ไล่เฉดฟุ้ง ๆ
-        'bg-gradient-to-br from-white/20 via-white/10 to-white/5 dark:from-white/10 dark:via-white/5 dark:to-transparent',
+        'bg-gradient-to-br from-white/15 via-white/15 to-white/30 dark:from-white/50 dark:via-white/5 dark:to-transparent',
         className
       )}
       {...rest}
