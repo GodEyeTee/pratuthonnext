@@ -5,7 +5,10 @@ import { cn } from '@/lib/utils';
 import { Bell, ChevronDown, Search } from 'lucide-react';
 import { useState } from 'react';
 import Sidebar from './Sidebar';
+
 import LanguageToggle, { type Locale } from '@/components/i18n/LanguageToggle';
+import { useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -25,6 +28,14 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // i18n
+  const router = useRouter();
+  const locale = useLocale() as Locale;
+  async function changeLang(next: Locale) {
+    await fetch(`/locale?lang=${next}`, { method: 'GET' });
+    router.refresh();
+  }
+
   return (
     <div className="min-h-screen bg-background dark:bg-gray-950">
       {/* Sidebar (controlled) */}
@@ -39,7 +50,7 @@ export default function DashboardLayout({
       <div
         className={cn(
           'transition-all duration-300',
-          collapsed ? 'lg:ml-16' : 'lg:ml-64' // ✅ expands when collapsed
+          collapsed ? 'lg:ml-16' : 'lg:ml-64'
         )}
       >
         {/* Top Header */}
@@ -64,6 +75,9 @@ export default function DashboardLayout({
 
               {/* Right side - Search & Actions */}
               <div className="flex items-center gap-4">
+                {/* Language */}
+                <LanguageToggle locale={locale} onChange={changeLang} />
+
                 {/* Search */}
                 <div className="hidden md:flex items-center">
                   <div className="relative">
