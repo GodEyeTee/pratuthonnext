@@ -1,117 +1,77 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { adminDb } from '@/lib/firebase/admin';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+
+function numOrNull(v: FormDataEntryValue | null) {
+  if (v == null) return null;
+  const n = Number(String(v));
+  return Number.isFinite(n) ? n : null;
+}
 
 export async function createRoomAction(formData: FormData) {
-  const supabase = await createClient(); // ✅ await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const now = new Date();
+  const docRef = adminDb.collection('rooms').doc(); // สร้าง id ใหม่
+  const payload: any = {
+    id: docRef.id,
+    number: (formData.get('number') as string)?.trim(),
+    type: (formData.get('type') as string)?.trim(),
+    status: (formData.get('status') as string)?.trim() || 'available',
+    floor: numOrNull(formData.get('floor')) ?? 1,
+    rate_daily: numOrNull(formData.get('rate_daily')) ?? 0,
+    rate_monthly: numOrNull(formData.get('rate_monthly')) ?? 0,
+    water_rate: numOrNull(formData.get('water_rate')) ?? 18,
+    electric_rate: numOrNull(formData.get('electric_rate')) ?? 7,
+    size: numOrNull(formData.get('size')),
+    amenities: tryParseJSON(formData.get('amenities')) ?? [],
+    images: tryParseJSON(formData.get('images')) ?? [],
+    description: (formData.get('description') as string) || '',
+    created_at: now.toISOString(),
+    updated_at: now.toISOString(),
+  };
 
-  const number = (formData.get('number') as string)?.trim();
-  const type = (formData.get('type') as string)?.trim();
-  const status = (formData.get('status') as string)?.trim() || 'available';
-  const floor = formData.get('floor')
-    ? parseInt(String(formData.get('floor')), 10)
-    : null;
-  const rateDaily = formData.get('rate_daily')
-    ? parseFloat(String(formData.get('rate_daily')))
-    : null;
-  const rateMonthly = formData.get('rate_monthly')
-    ? parseFloat(String(formData.get('rate_monthly')))
-    : null;
-  const waterRate = formData.get('water_rate')
-    ? parseFloat(String(formData.get('water_rate')))
-    : null;
-  const electricRate = formData.get('electric_rate')
-    ? parseFloat(String(formData.get('electric_rate')))
-    : null;
-
-  const { error } = await supabase.from('rooms').insert({
-    number,
-    type,
-    status,
-    floor,
-    rate_daily: rateDaily,
-    rate_monthly: rateMonthly,
-    water_rate: waterRate,
-    electric_rate: electricRate,
-  });
-
-  if (error) {
-    console.error('[rooms.insert]', error);
-    return { error: error.message };
-  }
+  await docRef.set(payload);
   revalidatePath('/rooms');
-  return { success: true };
+  return { success: true, id: docRef.id };
 }
 
 export async function updateRoomAction(formData: FormData) {
-  const supabase = await createClient(); // ✅ await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
   const id = String(formData.get('id'));
-  const number = (formData.get('number') as string)?.trim();
-  const type = (formData.get('type') as string)?.trim();
-  const status = (formData.get('status') as string)?.trim() || 'available';
-  const floor = formData.get('floor')
-    ? parseInt(String(formData.get('floor')), 10)
-    : null;
-  const rateDaily = formData.get('rate_daily')
-    ? parseFloat(String(formData.get('rate_daily')))
-    : null;
-  const rateMonthly = formData.get('rate_monthly')
-    ? parseFloat(String(formData.get('rate_monthly')))
-    : null;
-  const waterRate = formData.get('water_rate')
-    ? parseFloat(String(formData.get('water_rate')))
-    : null;
-  const electricRate = formData.get('electric_rate')
-    ? parseFloat(String(formData.get('electric_rate')))
-    : null;
+  const now = new Date();
 
-  const { error } = await supabase
-    .from('rooms')
-    .update({
-      number,
-      type,
-      status,
-      floor,
-      rate_daily: rateDaily,
-      rate_monthly: rateMonthly,
-      water_rate: waterRate,
-      electric_rate: electricRate,
-    })
-    .eq('id', id);
+  const payload: any = {
+    number: (formData.get('number') as string)?.trim(),
+    type: (formData.get('type') as string)?.trim(),
+    status: (formData.get('status') as string)?.trim() || 'available',
+    floor: numOrNull(formData.get('floor')) ?? 1,
+    rate_daily: numOrNull(formData.get('rate_daily')) ?? 0,
+    rate_monthly: numOrNull(formData.get('rate_monthly')) ?? 0,
+    water_rate: numOrNull(formData.get('water_rate')) ?? 18,
+    electric_rate: numOrNull(formData.get('electric_rate')) ?? 7,
+    size: numOrNull(formData.get('size')),
+    amenities: tryParseJSON(formData.get('amenities')) ?? [],
+    images: tryParseJSON(formData.get('images')) ?? [],
+    description: (formData.get('description') as string) || '',
+    updated_at: now.toISOString(),
+  };
 
-  if (error) {
-    console.error('[rooms.update]', error);
-    return { error: error.message };
-  }
+  await adminDb.collection('rooms').doc(id).update(payload);
   revalidatePath('/rooms');
   return { success: true };
 }
 
 export async function deleteRoomAction(formData: FormData) {
-  const supabase = await createClient(); // ✅ await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
   const id = String(formData.get('id'));
-  const { error } = await supabase.from('rooms').delete().eq('id', id);
-
-  if (error) {
-    console.error('[rooms.delete]', error);
-    return { error: error.message };
-  }
+  await adminDb.collection('rooms').doc(id).delete();
   revalidatePath('/rooms');
   return { success: true };
+}
+
+function tryParseJSON(val: FormDataEntryValue | null) {
+  if (!val) return null;
+  try {
+    return JSON.parse(String(val));
+  } catch {
+    return null;
+  }
 }

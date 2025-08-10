@@ -1,7 +1,8 @@
-// src/app/rooms/page.tsx
+export const runtime = 'nodejs';
+
 import RoomsToolbar from '@/app/rooms/Toolbar';
 import RoomActions from '@/app/rooms/components/RoomActions';
-import { createClient } from '@/lib/supabase/server';
+import { adminDb } from '@/lib/firebase/admin';
 import Link from 'next/link';
 
 type SP = {
@@ -20,47 +21,46 @@ export default async function RoomsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const sp = await searchParams; // ✅ Next 15: await
-  const supabase = await createClient(); // ✅ await
+  const sp = await searchParams;
 
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const perPage = Math.min(
     100,
     Math.max(5, parseInt(sp.perPage || '10', 10) || 10)
   );
-  const from = (page - 1) * perPage;
-  const to = from + perPage - 1;
+  const offset = (page - 1) * perPage;
 
   const q = sp.q?.trim();
   const status = sp.status?.trim();
   const type = sp.type?.trim();
   const floor = sp.floor ? parseInt(sp.floor, 10) : undefined;
 
-  let query = supabase
-    .from('rooms')
-    .select('id, number, type, status, floor, rate_daily, rate_monthly, size', {
-      count: 'exact',
-    })
-    .order('number', { ascending: true })
-    .range(from, to);
+  let base = adminDb.collection('rooms');
 
+  // Search: prefix scan by number (ไม่ผสม where อื่นเพื่อเลี่ยง composite conflicts)
   if (q) {
-    // หาในหมายเลขห้อง/ชนิดห้อง
-    query = query.or(`number.ilike.%${q}%,type.ilike.%${q}%`);
+    base = base
+      .orderBy('number')
+      .startAt(q)
+      .endAt(q + '\uf8ff');
+  } else {
+    base = base.orderBy('number');
+    if (status) base = base.where('status', '==', status);
+    if (type) base = base.where('type', '==', type);
+    if (typeof floor === 'number' && !Number.isNaN(floor))
+      base = base.where('floor', '==', floor);
   }
-  if (status) query = query.eq('status', status);
-  if (type) query = query.eq('type', type);
-  if (typeof floor === 'number' && !Number.isNaN(floor))
-    query = query.eq('floor', floor);
 
-  const { data: rooms, count, error } = await query;
-  if (error) {
-    console.error('[rooms.list] ', error.message);
-  }
+  // นับทั้งหมดแบบง่าย ๆ (อาจช้าในชุดดาต้าใหญ่มาก ๆ — ภายหลังค่อยทำ counter collection)
+  const snapshotAll = await base.get();
+  const total = snapshotAll.size;
+
+  // pagination (offset/limit)
+  const snapshot = await base.offset(offset).limit(perPage).get();
+  const rooms = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
           Rooms
@@ -70,20 +70,13 @@ export default async function RoomsPage({
         </p>
       </div>
 
-      {/* Toolbar */}
-      <RoomsToolbar
-        defaultQuery={sp}
-        total={typeof count === 'number' ? count : undefined}
-      />
+      <RoomsToolbar defaultQuery={sp} total={total} />
 
-      {/* Table Card */}
       <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
-        {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-muted/60 backdrop-blur px-4 py-3 text-sm text-muted-foreground">
           <div className="grid grid-cols-[48px_1.2fr_.9fr_.9fr_.7fr_.8fr_.8fr_80px]">
             <div className="px-2">
               <input
-                aria-label="select all"
                 type="checkbox"
                 className="size-4 rounded border-muted-foreground/30"
               />
@@ -98,23 +91,20 @@ export default async function RoomsPage({
           </div>
         </div>
 
-        {/* Rows */}
         <ul className="divide-y">
-          {rooms?.map(r => (
+          {rooms.map((r: any) => (
             <li
               key={r.id}
-              className="px-2 sm:px-4 bg-transparent hover:bg-muted/40 transition-colors"
+              className="px-2 sm:px-4 hover:bg-muted/40 transition-colors"
             >
               <div className="grid grid-cols-[48px_1.2fr_.9fr_.9fr_.7fr_.8fr_.8fr_80px] items-center gap-2">
                 <div className="py-3 px-2">
                   <input
-                    aria-label="select row"
                     type="checkbox"
                     className="size-4 rounded border-muted-foreground/30"
                   />
                 </div>
 
-                {/* Room number & subtitle */}
                 <Cell>
                   <div className="font-medium text-foreground">{r.number}</div>
                   {r.size && (
@@ -124,26 +114,16 @@ export default async function RoomsPage({
                   )}
                 </Cell>
 
-                {/* Type */}
                 <Cell>
                   <BadgeTone tone={typeTone(r.type)} label={r.type} />
                 </Cell>
-
-                {/* Status */}
                 <Cell>
                   <BadgeTone tone={statusTone(r.status)} label={r.status} />
                 </Cell>
-
-                {/* Floor */}
                 <Cell>{r.floor}</Cell>
-
-                {/* Daily */}
                 <Cell>฿{Number(r.rate_daily).toLocaleString()}</Cell>
-
-                {/* Monthly */}
                 <Cell>฿{Number(r.rate_monthly).toLocaleString()}</Cell>
 
-                {/* Actions */}
                 <div className="py-3 pr-2 ml-auto flex items-center justify-end">
                   <RoomActions
                     id={String(r.id)}
@@ -154,7 +134,7 @@ export default async function RoomsPage({
               </div>
             </li>
           ))}
-          {!rooms?.length && (
+          {!rooms.length && (
             <li className="p-10 text-center text-muted-foreground">
               No rooms found.
             </li>
@@ -162,11 +142,10 @@ export default async function RoomsPage({
         </ul>
       </div>
 
-      {/* Pagination */}
-      {typeof count === 'number' && count > perPage && (
+      {total > perPage && (
         <div className="flex items-center justify-between pt-2">
           <div className="text-sm text-muted-foreground">
-            Page {page} of {Math.ceil(count / perPage)} — {count} total rooms
+            Page {page} of {Math.ceil(total / perPage)} — {total} total rooms
           </div>
           <div className="space-x-2">
             {page > 1 && (
@@ -180,7 +159,7 @@ export default async function RoomsPage({
                 Previous
               </Link>
             )}
-            {page < Math.ceil(count / perPage) && (
+            {page < Math.ceil(total / perPage) && (
               <Link
                 href={{
                   pathname: '/rooms',
@@ -197,8 +176,6 @@ export default async function RoomsPage({
     </div>
   );
 }
-
-/* ---------- small UI helpers ---------- */
 
 function Cell({
   children,
@@ -237,7 +214,6 @@ function BadgeTone({
     </span>
   );
 }
-
 function statusTone(
   status?: string
 ): 'green' | 'amber' | 'red' | 'blue' | 'violet' | 'slate' {
