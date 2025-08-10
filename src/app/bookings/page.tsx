@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { adminDb } from '@/lib/firebase/admin';
+import type { DocumentData, Query } from 'firebase-admin/firestore';
 import { EllipsisVertical } from 'lucide-react';
 import Link from 'next/link';
 
@@ -12,131 +13,114 @@ type SP = {
 
 export const dynamic = 'force-dynamic';
 
-// ---------- helper: fetch จาก PostgREST พร้อม ISR ----------
-async function fetchBookingsViaRest(opts: {
-  token?: string;
-  userId?: string; // กัน cache ชนกันระหว่างผู้ใช้
+/** Firestore fetch + aggregate count()
+ * ใช้ offset+limit เพื่อให้พฤติกรรมเหมือนโค้ดเดิม (ง่ายสุดสำหรับ page/perPage)
+ * NOTE: ถ้าดาต้าใหญ่ แนะนำเปลี่ยนเป็น cursor (startAfter) ตาม docs เพื่อประหยัดอ่านดีกว่า offset. :contentReference[oaicite:9]{index=9}
+ */
+async function fetchBookings(opts: {
   page: number;
   perPage: number;
   q?: string;
   from?: string; // YYYY-MM-DD
   to?: string; // YYYY-MM-DD
 }) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const { page, perPage, q, from, to } = opts;
 
-  const { page, perPage, q, from, to, token, userId } = opts;
-  const offset = (page - 1) * perPage;
+  let qref: Query<DocumentData> = adminDb.collection('bookings');
 
-  // สร้างพารามิเตอร์ select + filter (ปรับให้ตรง FK ชื่อของคุณถ้า embed rooms ไม่ขึ้น)
-  const params = new URLSearchParams();
-
-  // ฝั่งคุณมี FK bookings.room_id -> rooms.id อยู่แล้ว
-  // ลอง embed ตรงๆ: rooms(number,type,images)
-  params.set(
-    'select',
-    [
-      'id',
-      'created_at',
-      'booking_type',
-      'status',
-      'check_in_date',
-      'check_out_date',
-      'room_id',
-      'rooms(number,type,images)',
-    ].join(',')
-  );
-
-  // sort ล่าสุดก่อน
-  params.set('order', 'created_at.desc');
-
-  // ค้นหาในเลขห้อง/สถานะ/ชนิดการจอง
-  if (q) {
-    params.set(
-      'or',
-      `rooms.number.ilike.*${encodeURIComponent(q)}*,status.ilike.*${encodeURIComponent(
-        q
-      )}*,booking_type.ilike.*${encodeURIComponent(q)}*`
-    );
-  }
-
-  // ช่วงวันที่อิง created_at
+  // filter ช่วงวันที่ (อิง createdAt)
   if (from) {
-    params.set('created_at', `gte.${new Date(from).toISOString()}`);
+    const start = new Date(from);
+    qref = qref.where('createdAt', '>=', start);
   }
   if (to) {
     const end = new Date(to);
     end.setHours(23, 59, 59, 999);
-    params.append('created_at', `lte.${end.toISOString()}`);
+    qref = qref.where('createdAt', '<=', end);
   }
 
-  // limit/offset ผ่าน query (เลี่ยง Range header เพื่ออ่านง่าย)
-  params.set('limit', String(perPage));
-  params.set('offset', String(offset));
-
-  const res = await fetch(`${url}/rest/v1/bookings?${params.toString()}`, {
-    headers: {
-      apikey: anon,
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : { Authorization: `Bearer ${anon}` }),
-      Prefer: 'count=exact',
-    },
-    // ✅ ISR data layer: แคช 60s + tag ตาม user
-    next: {
-      revalidate: 60,
-      tags: [
-        'bookings:list',
-        userId ? `bookings:user:${userId}` : 'bookings:anon',
-      ],
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`[bookings REST] ${res.status} ${res.statusText}: ${text}`);
+  // filter แบบง่ายด้วยสถานะหรือเลขห้อง (Firestore ไม่รองรับ OR text search ตรงๆ)
+  if (q && q.trim()) {
+    const qLower = q.trim().toLowerCase();
+    const knownStatuses = [
+      'pending',
+      'confirmed',
+      'cancelled',
+      'completed',
+      'paid',
+      'unpaid',
+    ];
+    if (knownStatuses.includes(qLower)) {
+      qref = qref.where('status', '==', qLower);
+    } else {
+      // ถ้ามีฟิลด์ roomNumber ให้ใช้ exact match; ไม่มีก็ข้าม
+      qref = qref.where('roomNumber', '==', q.trim());
+    }
   }
 
-  const totalHeader = res.headers.get('content-range'); // รูปแบบ: "0-9/123"
-  const total = totalHeader ? Number(totalHeader.split('/')[1]) : undefined;
-  const rows = (await res.json()) as any[];
+  qref = qref.orderBy('createdAt', 'desc');
 
-  const mapped = rows.map(b => {
-    const room = b.rooms || {};
-    const imageUrl =
-      Array.isArray(room.images) && room.images.length ? room.images[0] : null;
-    return {
-      id: b.id as string,
-      code: makePseudoCode(b.created_at, b.id),
-      bookingDate: b.created_at ? new Date(b.created_at) : null,
-      roomType: room.type ?? b.booking_type ?? '—',
-      roomNumber: room.number ?? '—',
-      checkIn: b.check_in_date ? new Date(b.check_in_date) : null,
-      checkOut: b.check_out_date ? new Date(b.check_out_date) : null,
-      guests: 1,
-      imageUrl,
-    };
-  });
+  // รวมจำนวนทั้งหมดด้วย count() aggregation (เร็วกว่าโหลดเอกสารทั้งหมด) :contentReference[oaicite:10]{index=10}
+  const countSnap = await qref.count().get();
+  const total = countSnap.data().count as number;
 
-  return { bookings: mapped, count: total ?? mapped.length };
+  // หน้า: ใช้ offset + limit (สะดวกกับ page/perPage เดิม แต่มีค่าอ่านมากกว่า cursor) :contentReference[oaicite:11]{index=11}
+  const offset = (page - 1) * perPage;
+  const snap = await qref.offset(offset).limit(perPage).get();
+
+  const bookings = snap.docs.map(d => mapBooking(d.id, d.data()));
+  return { bookings, count: total };
+}
+
+function toDate(val: any): Date | null {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  // Firestore Timestamp (Admin SDK)
+  if (val?.toDate) {
+    try {
+      return val.toDate();
+    } catch {}
+  }
+  // string ISO
+  try {
+    return new Date(val);
+  } catch {
+    return null;
+  }
+}
+
+function mapBooking(id: string, data: DocumentData) {
+  const createdAt = toDate(data.createdAt);
+  const checkIn = toDate(data.checkInDate ?? data.check_in_date);
+  const checkOut = toDate(data.checkOutDate ?? data.check_out_date);
+  const roomType = (data.roomType ??
+    data.booking_type ??
+    data.bookingType ??
+    '—') as string;
+  const roomNumber = String(data.roomNumber ?? data.room_id ?? '—');
+  const imageUrl = (data.imageUrl ?? null) as string | null;
+  const guests = (data.guests ?? 1) as number;
+
+  return {
+    id,
+    code: makePseudoCode(createdAt ? createdAt.toISOString() : null, id),
+    bookingDate: createdAt,
+    roomType,
+    roomNumber,
+    checkIn,
+    checkOut,
+    guests,
+    imageUrl,
+  };
 }
 
 // ---------- Page ----------
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<SP>;
+  searchParams: SP;
 }) {
-  const sp = await searchParams;
-
-  // อ่าน session ภายนอก cache (ถูกต้องตามกฎ dynamic APIs)
-  const supabase = await createClient();
-  const [{ data: userRes }, { data: sessionRes }] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.auth.getSession(),
-  ]);
-  const user = userRes.user ?? null;
-  const token = sessionRes.session?.access_token;
+  const sp = searchParams;
 
   const page = Math.max(1, parseInt(sp.page || '1', 10) || 1);
   const perPage = Math.min(
@@ -144,9 +128,7 @@ export default async function BookingsPage({
     Math.max(5, parseInt(sp.perPage || '10', 10) || 10)
   );
 
-  const { bookings, count } = await fetchBookingsViaRest({
-    token,
-    userId: user?.id,
+  const { bookings, count } = await fetchBookings({
     page,
     perPage,
     q: sp.q?.trim() || undefined,
@@ -172,7 +154,7 @@ export default async function BookingsPage({
           <input
             name="q"
             defaultValue={sp.q ?? ''}
-            placeholder="Search room, status, type…"
+            placeholder="Search room, status…"
             className="px-3 py-2 rounded-xl bg-background border focus:outline-none focus:ring-2 focus:ring-primary/40 w-[260px]"
           />
           <div className="flex items-center gap-2">
@@ -231,9 +213,7 @@ export default async function BookingsPage({
           {bookings.map((bk, idx) => (
             <li
               key={bk.id}
-              className={`px-2 sm:px-4 ${
-                idx % 2 ? 'bg-muted/20' : 'bg-transparent'
-              } hover:bg-muted/40 transition-colors`}
+              className={`px-2 sm:px-4 ${idx % 2 ? 'bg-muted/20' : 'bg-transparent'} hover:bg-muted/40 transition-colors`}
             >
               <div className="grid grid-cols-[96px_1.2fr_1fr_.9fr_1fr_1fr_1fr_56px] items-center gap-2">
                 {/* Image */}
@@ -267,7 +247,7 @@ export default async function BookingsPage({
                   {fmtDateTime(bk.bookingDate)}
                 </Cell>
 
-                {/* Room Type (badge) */}
+                {/* Room Type */}
                 <Cell className="hidden sm:flex">
                   <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-lime-200/60 text-lime-700 dark:bg-lime-300/20 dark:text-lime-300">
                     {bk.roomType}
@@ -356,6 +336,7 @@ function Cell({
 }) {
   return <div className={`py-3 px-3 ${className}`}>{children}</div>;
 }
+
 function fmtDateTime(d: Date | null) {
   if (!d) return '—';
   const date = new Intl.DateTimeFormat(undefined, {
@@ -384,10 +365,11 @@ function normalizeDateValue(v?: string) {
     return '';
   }
 }
-function makePseudoCode(created_at: string | null, id: string): string {
+function makePseudoCode(createdAtISO: string | null, id: string): string {
   try {
-    const d = created_at ? new Date(created_at) : null;
-    const ymd = d ? d.toISOString().slice(0, 10).replace(/-/g, '') : '00000000';
+    const ymd = createdAtISO
+      ? createdAtISO.slice(0, 10).replace(/-/g, '')
+      : '00000000';
     const short = id.replace(/-/g, '').slice(-6).toUpperCase();
     return `BK-${ymd}-${short}`;
   } catch {

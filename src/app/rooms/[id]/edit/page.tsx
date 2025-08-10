@@ -1,38 +1,37 @@
+export const runtime = 'nodejs';
+
 import RoomForm from '@/app/rooms/components/RoomForm';
-import { createClient } from '@/lib/supabase/server';
+import { adminDb } from '@/lib/firebase/admin';
+import { notFound } from 'next/navigation';
 
-interface EditRoomPageProps {
-  params: { id: string };
-}
+type P = { id: string };
 
-export default async function EditRoomPage({ params }: EditRoomPageProps) {
-  const supabase = await createClient();
-  const { data: room, error } = await supabase
-    .from('rooms')
-    .select(
-      'id, number, type, status, floor, rate_daily, rate_monthly, water_rate, electric_rate'
-    )
-    .eq('id', params.id)
-    .single();
+export default async function EditRoomPage({ params }: { params: Promise<P> }) {
+  const { id } = await params;
 
-  if (error || !room) {
-    // คุณอาจ redirect/notFound() ตาม UX ที่ต้องการ
-    return <div className="container py-6">Room not found.</div>;
-  }
+  const snap = await adminDb.collection('rooms').doc(id).get();
+  if (!snap.exists) notFound();
+
+  const r = snap.data() as any;
 
   return (
-    <div className="container py-6 max-w-2xl">
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Edit Room</h1>
       <RoomForm
         initial={{
-          id: String(room.id),
-          number: room.number,
-          type: room.type,
-          status: room.status,
-          floor: room.floor,
-          rate_daily: room.rate_daily,
-          rate_monthly: room.rate_monthly,
-          water_rate: room.water_rate,
-          electric_rate: room.electric_rate,
+          id,
+          number: r.number,
+          type: r.type,
+          status: r.status,
+          floor: r.floor,
+          rate_daily: r.rate_daily,
+          rate_monthly: r.rate_monthly,
+          water_rate: r.water_rate,
+          electric_rate: r.electric_rate,
+          size: r.size ?? null,
+          amenities: r.amenities ?? [],
+          images: r.images ?? [],
+          description: r.description ?? '',
         }}
       />
     </div>

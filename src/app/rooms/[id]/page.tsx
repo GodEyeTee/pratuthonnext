@@ -1,4 +1,3 @@
-// ใช้ Firestore Admin ด้วย (runtime node)
 export const runtime = 'nodejs';
 
 import RoomForm from '@/app/rooms/components/RoomForm';
@@ -10,9 +9,9 @@ type P = { id: string };
 export default async function EditRoomPage({
   params,
 }: {
-  params: Promise<P>; // ✅ Next 15: params เป็น Promise
+  params: Promise<P>; // Next 15: params เป็น Promise
 }) {
-  const { id } = await params; // ✅ ต้อง await ก่อนใช้
+  const { id } = await params;
 
   const snap = await adminDb.collection('rooms').doc(id).get();
   if (!snap.exists) notFound();

@@ -18,7 +18,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   fallback = null,
   redirectTo,
 }) => {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const router = useRouter();
 
   if (loading) {
@@ -29,7 +29,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     );
   }
 
-  if (!user) {
+  if (!user || !role) {
     if (redirectTo) {
       router.push(redirectTo);
       return null;
@@ -37,7 +37,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     return fallback || <UnauthorizedMessage type="login" />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  if (!allowedRoles.includes(role)) {
     if (redirectTo) {
       router.push(redirectTo);
       return null;
@@ -46,7 +46,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
       fallback || (
         <UnauthorizedMessage
           type="role"
-          userRole={user.role}
+          userRole={role}
           allowedRoles={allowedRoles}
         />
       )
@@ -63,7 +63,8 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   fallback = null,
   requireAll = true,
 }) => {
-  const { user, loading, hasAnyPermission, hasAllPermissions } = useAuth();
+  const { user, role, loading, hasAnyPermission, hasAllPermissions } =
+    useAuth();
 
   if (loading) {
     return (
@@ -73,7 +74,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     );
   }
 
-  if (!user) {
+  if (!user || !role) {
     return fallback || <UnauthorizedMessage type="login" />;
   }
 
@@ -86,6 +87,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
       fallback || (
         <UnauthorizedMessage
           type="permission"
+          userRole={role}
           permissions={requiredPermissions}
         />
       )
@@ -126,8 +128,8 @@ export const ConditionalRender: React.FC<{
   roles: UserRole[];
   children: React.ReactNode;
 }> = ({ roles, children }) => {
-  const { user } = useAuth();
-  if (!user || !roles.includes(user.role)) return null;
+  const { role } = useAuth();
+  if (!role || !roles.includes(role)) return null;
   return <>{children}</>;
 };
 
@@ -155,7 +157,6 @@ const UnauthorizedMessage: React.FC<UnauthorizedMessageProps> = ({
   type,
   userRole,
   allowedRoles,
-  permissions,
 }) => {
   const getMessage = () => {
     switch (type) {
@@ -171,14 +172,15 @@ const UnauthorizedMessage: React.FC<UnauthorizedMessageProps> = ({
           title: 'ไม่มีสิทธิ์เข้าถึง',
           description: `ต้องการสิทธิ์: ${allowedRoles?.join(', ')}`,
           action: 'กลับหน้าแรก',
-          actionHref: userRole ? ROLE_REDIRECTS[userRole] : '/',
+          // แคบชนิดก่อน index เพื่อกัน TS7053
+          actionHref: userRole ? ROLE_REDIRECTS[userRole as UserRole] : '/',
         };
       case 'permission':
         return {
           title: 'ไม่มีสิทธิ์เข้าถึง',
           description: `คุณไม่มีสิทธิ์ที่จำเป็นในการเข้าถึงส่วนนี้`,
           action: 'กลับหน้าแรก',
-          actionHref: userRole ? ROLE_REDIRECTS[userRole] : '/',
+          actionHref: userRole ? ROLE_REDIRECTS[userRole as UserRole] : '/',
         };
       default:
         return {

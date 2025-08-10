@@ -43,7 +43,7 @@ type SidebarProps = {
 
 export default function Sidebar(props: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, role } = useAuth(); // ⭐ ใช้ role จาก useAuth
   const { theme, toggleMode } = useTheme();
 
   // fallback states when not controlled
@@ -56,7 +56,7 @@ export default function Sidebar(props: SidebarProps) {
   const setMobileOpen = props.setMobileOpen ?? setIm;
 
   const filterByRole = (items: SidebarItem[]) =>
-    items.filter(it => !it.roles || (user && it.roles.includes(user.role)));
+    items.filter(it => !it.roles || (role && it.roles.includes(role)));
 
   const mainItems: SidebarItem[] = useMemo(
     () =>
@@ -90,7 +90,7 @@ export default function Sidebar(props: SidebarProps) {
           roles: ['admin', 'support'],
         },
       ]),
-    [user?.role]
+    [role]
   );
 
   const systemItems: SidebarItem[] = useMemo(
@@ -118,7 +118,7 @@ export default function Sidebar(props: SidebarProps) {
           roles: ['admin'],
         },
       ]),
-    [user?.role]
+    [role]
   );
 
   const accountItems: SidebarItem[] = useMemo(
@@ -257,7 +257,7 @@ export default function Sidebar(props: SidebarProps) {
           {!collapsed && user && (
             <div className="text-xs text-muted-foreground px-2">
               <div>{user.email}</div>
-              <div className="capitalize">{user.role}</div>
+              <div className="capitalize">{role ?? 'user'}</div>
             </div>
           )}
         </div>

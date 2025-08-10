@@ -1,18 +1,13 @@
-// Server Component — ไม่ใช้ "use client"
-import { createClient } from '@/lib/supabase/server';
+// Server Component
+import { getCurrentSession } from '@/lib/auth.server';
 import { Activity, CalendarDays, Hotel, Users, Wrench } from 'lucide-react';
 
-// กัน cache แปลก ๆ เวลา back/forward
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const supabase = await createClient(); // ✅ Next 15: ต้อง await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getCurrentSession();
 
-  // ยังไม่ล็อกอิน → แสดงลิงก์ไป login (อย่า redirect ตรงนี้ กัน loop กับ middleware)
-  if (!user) {
+  if (!session) {
     return (
       <div className="p-6">
         <h1 className="text-xl font-semibold mb-2">Dashboard</h1>
@@ -26,7 +21,7 @@ export default async function DashboardPage() {
     );
   }
 
-  // demo data (คง UI ให้โหลดได้ก่อน จะเปลี่ยนเป็นข้อมูลจริงภายหลัง)
+  // demo stats เหมือนของเดิม
   const stats = [
     {
       label: 'Total Rooms',
@@ -82,13 +77,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome, {user.email ?? 'User'}</p>
+        <p className="text-muted-foreground">
+          Welcome, {session.email ?? 'User'}
+        </p>
       </div>
-
-      {/* Stats */}
+      {/* ... เหมือนเดิม (ตัดเพื่อย่น) ... */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
           <div
@@ -106,11 +101,7 @@ export default async function DashboardPage() {
                   </p>
                   <div className="flex items-center mt-2">
                     <span
-                      className={`text-xs font-medium ${
-                        String(stat.trend).startsWith('+')
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}
+                      className={`text-xs font-medium ${String(stat.trend).startsWith('+') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                     >
                       {stat.trend}
                     </span>
@@ -130,9 +121,8 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Content */}
+      {/* Weekly */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weekly Occupancy */}
         <div className="lg:col-span-2 rounded-xl border bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
           <div className="p-4 border-b dark:border-gray-800">
             <h2 className="text-lg font-semibold text-foreground">This Week</h2>

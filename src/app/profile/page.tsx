@@ -1,41 +1,41 @@
-// Server Component — ใช้ server action อัปเดตโปรไฟล์
-import { createClient } from '@/lib/supabase/server';
+// src/app/profile/page.tsx
+import { getCurrentSession } from '@/lib/auth.server';
+import { adminDb } from '@/lib/firebase/admin';
 import { revalidatePath } from 'next/cache';
+import 'server-only';
 
-// server action: ห้ามใส่ method/encType ที่ <form> ฝั่ง client (React จัดการให้)
+export const dynamic = 'force-dynamic';
+
+// Server Action: อัปเดตโปรไฟล์ผู้ใช้ใน Firestore (Admin SDK)
 export async function updateProfileAction(formData: FormData): Promise<void> {
   'use server';
-  const supabase = await createClient(); // ✅ Next 15: ต้อง await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+
+  const session = await getCurrentSession();
+  if (!session) return;
 
   const displayName =
     (formData.get('display_name') as string | null)?.trim() || null;
   const avatarUrl =
     (formData.get('avatar_url') as string | null)?.trim() || null;
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ display_name: displayName, avatar_url: avatarUrl })
-    .eq('id', user.id);
+  // อัปเดต (merge) เฉพาะฟิลด์ที่ส่งมา + updatedAt
+  await adminDb.collection('users').doc(session.uid).set(
+    {
+      displayName,
+      photoURL: avatarUrl,
+      updatedAt: new Date(),
+    },
+    { merge: true }
+  );
 
-  if (error) {
-    console.error('[profile.update]', error.message);
-  }
+  // ให้หน้า /profile ดึงข้อมูลใหม่
   revalidatePath('/profile');
 }
 
-export const dynamic = 'force-dynamic';
-
 export default async function ProfilePage() {
-  const supabase = await createClient(); // ✅ await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getCurrentSession();
 
-  if (!user) {
+  if (!session) {
     return (
       <div className="p-6">
         <h1 className="text-xl font-semibold mb-2">Profile</h1>
@@ -49,11 +49,13 @@ export default async function ProfilePage() {
     );
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, avatar_url')
-    .eq('id', user.id)
-    .single();
+  // ดึงข้อมูลโปรไฟล์จาก Firestore (users/{uid})
+  const snap = await adminDb.collection('users').doc(session.uid).get();
+  const profile = snap.exists ? (snap.data() as any) : null;
+
+  const email = session.email ?? null;
+  const currentDisplayName = profile?.displayName ?? session.displayName ?? '';
+  const currentAvatarUrl = profile?.photoURL ?? session.photoURL ?? '';
 
   return (
     <div className="p-6 max-w-2xl space-y-6">
@@ -78,14 +80,14 @@ export default async function ProfilePage() {
             <input
               id="email"
               type="email"
-              value={user.email ?? ''}
+              value={email ?? ''}
               disabled
               className="w-full p-2 rounded-md border bg-muted text-foreground/80 cursor-not-allowed"
             />
           </div>
 
           {/* Profile form */}
-          {/* ✅ อย่าใส่ method/encType เมื่อ action เป็น function */}
+          {/* อย่าใส่ method/encType เมื่อ action เป็นฟังก์ชัน Server Action */}
           <form action={updateProfileAction} className="space-y-4">
             <div>
               <label
@@ -97,7 +99,7 @@ export default async function ProfilePage() {
               <input
                 id="display_name"
                 name="display_name"
-                defaultValue={profile?.display_name ?? ''}
+                defaultValue={currentDisplayName}
                 className="w-full p-2 rounded-md border bg-background"
                 placeholder="Your name"
               />
@@ -114,7 +116,7 @@ export default async function ProfilePage() {
                 id="avatar_url"
                 name="avatar_url"
                 type="url"
-                defaultValue={profile?.avatar_url ?? ''}
+                defaultValue={currentAvatarUrl}
                 className="w-full p-2 rounded-md border bg-background"
                 placeholder="https://…"
               />
@@ -142,17 +144,17 @@ export default async function ProfilePage() {
       </div>
 
       {/* Preview */}
-      {(profile?.avatar_url || profile?.display_name) && (
+      {(currentAvatarUrl || currentDisplayName) && (
         <div className="rounded-xl border bg-card dark:bg-gray-900/80 dark:border-gray-800">
           <div className="p-4 border-b dark:border-gray-800">
             <h2 className="text-lg font-semibold text-foreground">Preview</h2>
           </div>
           <div className="p-6 flex items-center gap-4">
             <div className="w-16 h-16 rounded-full overflow-hidden bg-muted">
-              {profile?.avatar_url ? (
+              {currentAvatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={profile.avatar_url}
+                  src={currentAvatarUrl}
                   alt="avatar"
                   className="w-full h-full object-cover"
                 />
@@ -165,7 +167,7 @@ export default async function ProfilePage() {
             <div>
               <div className="text-sm text-muted-foreground">Display name</div>
               <div className="text-lg font-medium">
-                {profile?.display_name || '-'}
+                {currentDisplayName || '-'}
               </div>
             </div>
           </div>

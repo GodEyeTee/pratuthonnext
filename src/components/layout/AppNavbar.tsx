@@ -24,7 +24,7 @@ type Props = {
 };
 
 export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
-  const { user } = useAuth();
+  const { user, role } = useAuth(); // ⭐ ใช้ role จาก useAuth
   const tNav = useTranslations('navigation');
   const tAuth = useTranslations('auth');
   const nextIntlLocale = useNextIntlLocale();
@@ -179,7 +179,7 @@ export default function AppNavbar({ title, subtitle, rightExtra }: Props) {
                       {user?.email || 'User'}
                     </p>
                     <p className="text-xs text-muted-foreground capitalize">
-                      {(user?.role as string) || 'user'}
+                      {role ?? 'user'}
                     </p>
                   </div>
                   <div className="p-1">

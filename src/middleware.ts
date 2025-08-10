@@ -8,15 +8,11 @@ import type { UserRole } from '@/types/rbac';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-// ชื่อ cookie ที่จะมีเมื่อผู้ใช้ล็อกอิน (ครอบคลุมกรณี Supabase พบบ่อย)
-const SESSION_COOKIES = [
-  'sb-access-token',
-  'sb-refresh-token',
-  'supabase-auth-token', // บางโปรเจกต์ตั้งเอง/legacy
-];
+// ใช้คุกกี้ session ของ Firebase (ตั้งชื่อได้ผ่าน ENV; ดีฟอลต์ '__session')
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || '__session';
 
 function hasSessionCookie(req: NextRequest) {
-  return SESSION_COOKIES.some(k => req.cookies.has(k));
+  return req.cookies.has(SESSION_COOKIE_NAME);
 }
 
 export async function middleware(request: NextRequest) {
@@ -38,7 +34,7 @@ export async function middleware(request: NextRequest) {
 
   const isAuthed = hasSessionCookie(request);
 
-  // ถ้ามี session แล้วแต่ไปหน้า auth → เด้งออก (ครั้งเดียว ไม่กระพริบ)
+  // มี session แล้วแต่ไปหน้า auth → เด้งออกตาม role
   if (isAuthed && AUTH_ROUTES.some(r => pathname.startsWith(r))) {
     const redirectPath = ROLE_REDIRECTS['user' as UserRole] ?? '/dashboard';
     return NextResponse.redirect(new URL(redirectPath, request.url));
@@ -55,7 +51,7 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirectTo', ret);
       return NextResponse.redirect(loginUrl);
     }
-    // ไม่เช็ค role ที่นี่ → ไปเช็คที่เพจ/เซิร์ฟเวอร์ (เร็วและแน่นกว่า)
+    // เช็ค role/permission ต่อที่ฝั่งเพจหรือเซิร์ฟเวอร์
   }
 
   return NextResponse.next();

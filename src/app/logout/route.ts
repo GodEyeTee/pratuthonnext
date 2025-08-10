@@ -1,13 +1,17 @@
-import { createClient } from '@/lib/supabase/server';
+import 'server-only';
+
+import { clearSessionCookie } from '@/lib/auth.server';
 import { NextResponse } from 'next/server';
 
+// รองรับทั้ง GET/POST
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient(); // ✅ ต้อง await
-    await supabase.auth.signOut(); // เคลียร์คุกกี้ SSR ให้เรียบร้อย
+    // ลบคุกกี้ session ของ Firebase (HttpOnly) ฝั่งเซิร์ฟเวอร์
+    await clearSessionCookie();
   } catch {
-    // ignore errors – เราจะ redirect ต่อให้ signOut ล้มเหลว
+    // เงียบไว้ ต่อให้ล้มเหลว เราก็ redirect ต่อ
   }
+
   const { origin } = new URL(request.url);
   return NextResponse.redirect(`${origin}/login`);
 }

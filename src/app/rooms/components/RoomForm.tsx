@@ -14,6 +14,11 @@ export interface RoomFormProps {
     rate_monthly: number | null;
     water_rate: number | null;
     electric_rate: number | null;
+    // ฟิลด์เสริมที่เพจ [id] ส่งมา
+    size?: number | null;
+    amenities?: unknown[];
+    images?: string[];
+    description?: string;
   };
 }
 
@@ -26,13 +31,13 @@ export default function RoomForm({ initial }: RoomFormProps) {
     setError(null);
     startTransition(async () => {
       const action = isEdit ? updateRoomAction : createRoomAction;
+      if (isEdit) formData.set('id', initial!.id);
       const result = await action(formData);
-      if (result?.error) setError(result.error);
+      if (!result.success) setError(result.error || 'Operation failed');
     });
   };
 
   return (
-    // ห้ามใส่ method / encType เมื่อ action เป็น function
     <form action={handleSubmit} className="space-y-4">
       {isEdit && <input type="hidden" name="id" defaultValue={initial?.id} />}
 

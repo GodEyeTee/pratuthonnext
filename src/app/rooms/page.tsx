@@ -35,29 +35,37 @@ export default async function RoomsPage({
   const type = sp.type?.trim();
   const floor = sp.floor ? parseInt(sp.floor, 10) : undefined;
 
-  let base = adminDb.collection('rooms');
+  // สำคัญ: ให้ตัวแปรมีชนิดเป็น Query ตั้งแต่เริ่ม (แก้ TS2740)
+  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> =
+    adminDb.collection('rooms');
 
-  // Search: prefix scan by number (ไม่ผสม where อื่นเพื่อเลี่ยง composite conflicts)
+  if (status) query = query.where('status', '==', status);
+  if (type) query = query.where('type', '==', type);
+  if (typeof floor === 'number' && !Number.isNaN(floor))
+    query = query.where('floor', '==', floor);
+
   if (q) {
-    base = base
+    query = query
       .orderBy('number')
       .startAt(q)
       .endAt(q + '\uf8ff');
   } else {
-    base = base.orderBy('number');
-    if (status) base = base.where('status', '==', status);
-    if (type) base = base.where('type', '==', type);
-    if (typeof floor === 'number' && !Number.isNaN(floor))
-      base = base.where('floor', '==', floor);
+    query = query.orderBy('number');
   }
 
-  // นับทั้งหมดแบบง่าย ๆ (อาจช้าในชุดดาต้าใหญ่มาก ๆ — ภายหลังค่อยทำ counter collection)
-  const snapshotAll = await base.get();
-  const total = snapshotAll.size;
+  // รวมจำนวนด้วย count() ที่ระดับ Query (อ่านเอกสารทางการ) :contentReference[oaicite:4]{index=4}
+  const countSnap = await query.count().get();
+  const total = Number(countSnap.data().count ?? 0);
 
-  // pagination (offset/limit)
-  const snapshot = await base.offset(offset).limit(perPage).get();
-  const rooms = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  const snapshot = await query.offset(offset).limit(perPage).get();
+  const rooms = snapshot.docs.map(
+    (
+      d: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>
+    ) => ({
+      id: d.id,
+      ...(d.data() as any),
+    })
+  );
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -186,7 +194,6 @@ function Cell({
 }) {
   return <div className={`py-3 px-2 ${className}`}>{children}</div>;
 }
-
 function BadgeTone({
   tone,
   label,

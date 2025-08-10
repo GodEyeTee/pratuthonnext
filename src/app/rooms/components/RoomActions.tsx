@@ -1,10 +1,11 @@
-// src/app/rooms/components/RoomActions.tsx
 'use client';
 
 import { deleteRoomAction } from '@/app/rooms/actions';
 import { EllipsisVertical } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition } from 'react';
+
+type DeleteResp = { success: boolean; error?: string }; // ให้ชนิดที่ client ใช้แน่ ๆ
 
 export default function RoomActions({
   id,
@@ -33,9 +34,9 @@ export default function RoomActions({
     startTransition(async () => {
       const fd = new FormData();
       fd.set('id', id);
-      const res = await deleteRoomAction(fd);
-      if (res?.error) {
-        alert(res.error);
+      const res = (await deleteRoomAction(fd)) as DeleteResp;
+      if (!res.success) {
+        alert(res.error || 'Failed to delete');
       } else if (onDeletedRedirect) {
         const q = new URLSearchParams(
           onDeletedRedirect.query as any
