@@ -29,6 +29,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     const id = props.id || props.name;
+    const hasLeft = !!leftIcon;
+    const hasRight = !!rightIcon;
+
     return (
       <div className={cn('space-y-1', fullWidth && 'w-full')}>
         {label && (
@@ -59,8 +62,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               'file:border-0 file:bg-transparent file:text-sm file:font-medium',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:focus-visible:ring-orange-400 focus-visible:ring-offset-2',
               'disabled:cursor-not-allowed disabled:opacity-50',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
+              hasLeft && 'pl-10',
+              hasRight && 'pr-10',
               error &&
                 'border-destructive dark:border-red-500 focus-visible:ring-destructive',
               className

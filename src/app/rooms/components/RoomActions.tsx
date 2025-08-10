@@ -1,47 +1,86 @@
-/*
- * RoomActions component
- *
- * This client component renders a delete button for a room. It submits
- * deletion via a server action to ensure database writes happen securely on
- * the server. Confirmation is requested from the user before submission.
- */
-
+// src/app/rooms/components/RoomActions.tsx
 'use client';
 
-import { useState, useTransition } from 'react';
-import { deleteRoomAction } from '../actions';
+import { deleteRoomAction } from '@/app/rooms/actions';
+import { EllipsisVertical } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useRef, useState, useTransition } from 'react';
 
-interface RoomActionsProps {
+export default function RoomActions({
+  id,
+  editHref,
+  onDeletedRedirect,
+}: {
   id: string;
-}
+  editHref: string;
+  onDeletedRedirect?: { pathname: string; query?: Record<string, any> };
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const ref = useRef<HTMLDivElement>(null);
 
-export default function RoomActions({ id }: RoomActionsProps) {
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('click', onClick);
+    return () => window.removeEventListener('click', onClick);
+  }, []);
 
-  const handleDelete = () => {
-    if (!confirm('Are you sure you want to delete this room?')) return;
-    setError(null);
+  const onDelete = () => {
+    if (!confirm('Delete this room? This action cannot be undone.')) return;
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set('id', id);
-      const result = await deleteRoomAction({}, formData);
-      if (result?.error) {
-        setError(result.error);
+      const fd = new FormData();
+      fd.set('id', id);
+      const res = await deleteRoomAction(fd);
+      if (res?.error) {
+        alert(res.error);
+      } else if (onDeletedRedirect) {
+        const q = new URLSearchParams(
+          onDeletedRedirect.query as any
+        ).toString();
+        window.location.href = q
+          ? `${onDeletedRedirect.pathname}?${q}`
+          : onDeletedRedirect.pathname;
+      } else {
+        window.location.reload();
       }
     });
   };
 
   return (
-    <div className="inline-flex flex-col items-start space-y-1">
+    <div className="relative" ref={ref}>
       <button
-        onClick={handleDelete}
-        disabled={isPending}
-        className="text-red-600 hover:underline disabled:opacity-50"
+        className="p-2 rounded-lg hover:bg-muted/60"
+        aria-label="Actions"
+        title="Actions"
+        onClick={() => setOpen(v => !v)}
+        disabled={pending}
       >
-        Delete
+        <EllipsisVertical className="w-5 h-5 text-muted-foreground" />
       </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-40 rounded-xl border bg-popover text-popover-foreground shadow-lg z-20">
+          <div className="py-1">
+            <Link
+              href={editHref}
+              className="block px-3 py-2 text-sm hover:bg-muted/60 rounded-t-xl"
+              onClick={() => setOpen(false)}
+            >
+              Edit
+            </Link>
+            <button
+              onClick={onDelete}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-rose-500/10 text-rose-600 dark:text-rose-300 rounded-b-xl"
+              disabled={pending}
+            >
+              {pending ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

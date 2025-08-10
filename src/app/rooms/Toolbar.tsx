@@ -1,97 +1,114 @@
+// src/app/rooms/Toolbar.tsx
 'use client';
 
-import { Button } from '@/components/ui/Button';
-import { useTranslations } from 'next-intl';
+import AddRoomModal from '@/app/rooms/AddRoomModal';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useRef, useTransition } from 'react';
+import { useMemo } from 'react';
 
-// debounce ง่าย ๆ ไม่ต้องติดตั้งแพ็กเกจ
-function useDebouncedCallback<T extends (...args: any[]) => void>(
-  fn: T,
-  delay = 300
-) {
-  const fnRef = useRef(fn);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+type Query = {
+  q?: string;
+  status?: string;
+  type?: string;
+  floor?: string;
+  page?: string;
+  perPage?: string;
+};
 
-  useEffect(() => {
-    fnRef.current = fn;
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [fn]);
+export default function RoomsToolbar({
+  defaultQuery,
+  total,
+}: {
+  defaultQuery?: Query;
+  total?: number;
+}) {
+  const q = defaultQuery?.q ?? '';
+  const perPage = defaultQuery?.perPage ?? '10';
 
-  return useCallback(
-    (...args: Parameters<T>) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => fnRef.current(...args), delay);
-    },
-    [delay]
+  const filterHref = useMemo(
+    () => ({ pathname: '/rooms', query: { ...defaultQuery, page: '1' } }),
+    [defaultQuery]
   );
-}
-
-export default function RoomsToolbar() {
-  const tRooms = useTranslations('rooms');
-  const tCommon = useTranslations('common');
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-
-  const setParam = (key: string, value?: string) => {
-    const p = new URLSearchParams(params.toString());
-    if (value && value.length) p.set(key, value);
-    else p.delete(key);
-    if (key !== 'page') p.delete('page');
-    startTransition(() => router.replace(`${pathname}?${p.toString()}`));
-  };
-
-  const onSearch = useDebouncedCallback((v: string) => setParam('q', v), 300);
 
   return (
-    <div
-      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-      aria-busy={isPending}
-    >
-      <div className="flex flex-1 items-center gap-2">
-        <input
-          defaultValue={params.get('q') ?? ''}
-          onChange={e => onSearch(e.target.value)}
-          placeholder={tCommon('search')}
-          className="w-full sm:max-w-xs h-10 px-3 rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-orange-500"
-          aria-label="Search rooms"
-        />
-
-        <select
-          className="h-10 px-3 rounded-md border bg-background dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-orange-500"
-          value={params.get('status') ?? ''}
-          onChange={e => setParam('status', e.target.value || undefined)}
-          aria-label="Filter by status"
-        >
-          <option value="">{tRooms('status')}</option>
-          <option value="available">{tRooms('available')}</option>
-          <option value="occupied">{tRooms('occupied')}</option>
-          <option value="maintenance">{tRooms('maintenance')}</option>
-          <option value="reserved">Reserved</option>
-        </select>
-
-        <select
-          className="h-10 px-3 rounded-md border bg-background dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-orange-500"
-          value={params.get('type') ?? ''}
-          onChange={e => setParam('type', e.target.value || undefined)}
-          aria-label="Filter by type"
-        >
-          <option value="">{tRooms('roomType')}</option>
-          <option value="standard">standard</option>
-          <option value="deluxe">deluxe</option>
-          <option value="suite">suite</option>
-        </select>
+    <div className="flex flex-col gap-3">
+      {/* Top row: summary + actions */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {total ? `${total} rooms` : '—'} • Page size
+          <span className="ml-1 inline-flex items-center gap-1">
+            <span className="rounded-md border px-2 py-1 text-foreground bg-background">
+              {perPage}
+            </span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="px-3 py-2 rounded-xl border hover:bg-muted/50">
+            Import
+          </button>
+          <button className="px-3 py-2 rounded-xl border hover:bg-muted/50">
+            Export
+          </button>
+          <AddRoomModal />
+        </div>
       </div>
 
-      <Button asChild>
-        <Link href="/rooms/new">+ {tRooms('addRoom')}</Link>
-      </Button>
+      {/* Filters row (GET form) */}
+      <form className="flex flex-wrap items-center gap-2 bg-card/70 border rounded-2xl p-2.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <input
+          name="q"
+          defaultValue={q}
+          placeholder="Search room number, type…"
+          className="px-3 py-2 rounded-xl bg-background border focus:outline-none focus:ring-2 focus:ring-primary/40 w-[260px]"
+        />
+
+        {/* Quick filters (optional — เปลี่ยนค่าจริงตามต้องการได้) */}
+        <select
+          name="status"
+          defaultValue={defaultQuery?.status ?? ''}
+          className="px-3 py-2 rounded-xl bg-background border"
+        >
+          <option value="">All status</option>
+          <option value="available">Available</option>
+          <option value="occupied">Occupied</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="reserved">Reserved</option>
+        </select>
+        <select
+          name="type"
+          defaultValue={defaultQuery?.type ?? ''}
+          className="px-3 py-2 rounded-xl bg-background border"
+        >
+          <option value="">All types</option>
+          <option value="standard">Standard</option>
+          <option value="deluxe">Deluxe</option>
+          <option value="suite">Suite</option>
+        </select>
+        <input
+          type="number"
+          name="floor"
+          min={1}
+          placeholder="Floor"
+          defaultValue={defaultQuery?.floor ?? ''}
+          className="px-3 py-2 rounded-xl bg-background border w-24"
+        />
+
+        <input type="hidden" name="page" value="1" />
+        <button className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 active:scale-[.98] transition">
+          Apply
+        </button>
+
+        {(defaultQuery?.q ||
+          defaultQuery?.status ||
+          defaultQuery?.type ||
+          defaultQuery?.floor) && (
+          <Link
+            href="/rooms"
+            className="px-4 py-2 rounded-xl border hover:bg-muted/50 text-foreground"
+          >
+            Reset
+          </Link>
+        )}
+      </form>
     </div>
   );
 }

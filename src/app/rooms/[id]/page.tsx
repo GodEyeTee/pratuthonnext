@@ -1,11 +1,8 @@
 /*
- * Edit room page
- *
- * Fetches the specified room by id and passes it to the RoomForm for editing.
+ * Edit room page (SSR anon; RLS-enabled)
  */
-
 import RoomForm from '@/app/rooms/components/RoomForm';
-import { createServerSupabase } from '@/lib/supabaseClient.server';
+import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 
 interface EditRoomPageProps {
@@ -13,7 +10,7 @@ interface EditRoomPageProps {
 }
 
 export default async function EditRoomPage({ params }: EditRoomPageProps) {
-  const supabase = createServerSupabase();
+  const supabase = await createClient(); // ✅ await
   const { data: room, error } = await supabase
     .from('rooms')
     .select(
@@ -21,10 +18,12 @@ export default async function EditRoomPage({ params }: EditRoomPageProps) {
     )
     .eq('id', params.id)
     .single();
+
   if (error || !room) {
     console.error('Failed to fetch room for editing:', error?.message);
     notFound();
   }
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Edit Room</h1>

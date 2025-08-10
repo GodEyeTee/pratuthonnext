@@ -1,112 +1,176 @@
-/*
- * Profile page
- *
- * This server component renders the profile page for the currently logged in
- * user. It allows the user to view and update their display name and avatar.
- * Only the owner can edit their profile; this is enforced in the middleware
- * and again in the server action. If no user is logged in, the middleware
- * will have already redirected the request to `/login`.
- */
-
+// Server Component — ใช้ server action อัปเดตโปรไฟล์
+import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { createServerSupabase } from '../../lib/supabaseClient.server';
 
-// Server action to update the profile. This runs only on the server.
-export async function updateProfileAction(prevState: any, formData: FormData) {
+// server action: ห้ามใส่ method/encType ที่ <form> ฝั่ง client (React จัดการให้)
+export async function updateProfileAction(formData: FormData): Promise<void> {
   'use server';
-  const supabase = createServerSupabase();
+  const supabase = await createClient(); // ✅ Next 15: ต้อง await
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    redirect('/login');
-  }
-  const displayName = formData.get('display_name') as string;
-  const avatarUrl = formData.get('avatar_url') as string | null;
+  if (!user) return;
+
+  const displayName =
+    (formData.get('display_name') as string | null)?.trim() || null;
+  const avatarUrl =
+    (formData.get('avatar_url') as string | null)?.trim() || null;
+
   const { error } = await supabase
     .from('profiles')
     .update({ display_name: displayName, avatar_url: avatarUrl })
     .eq('id', user.id);
+
   if (error) {
-    // In a real app, you may want to surface this error to the client
-    console.error('Failed to update profile:', error.message);
+    console.error('[profile.update]', error.message);
   }
-  // Revalidate the profile page so the updated data is reflected
   revalidatePath('/profile');
-  return { success: !error };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProfilePage() {
-  const supabase = createServerSupabase();
+  const supabase = await createClient(); // ✅ await
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
-    redirect('/login');
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-semibold mb-2">Profile</h1>
+        <p className="text-muted-foreground">
+          You are not signed in.{' '}
+          <a className="text-blue-600 underline" href="/login">
+            Login
+          </a>
+        </p>
+      </div>
+    );
   }
-  // Fetch profile record for this user
+
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
+    .select('display_name, avatar_url')
     .eq('id', user.id)
     .single();
+
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">My Profile</h1>
-      <form
-        action={updateProfileAction}
-        className="space-y-4"
-        encType="multipart/form-data"
-      >
-        <div>
-          <label htmlFor="email" className="block mb-1 text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={user.email ?? ''}
-            disabled
-            className="w-full p-2 border rounded bg-gray-200 cursor-not-allowed"
-          />
+    <div className="p-6 max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">My Profile</h1>
+        <p className="text-muted-foreground">
+          Manage your personal information.
+        </p>
+      </div>
+
+      <div className="rounded-xl border bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800">
+        <div className="p-4 border-b dark:border-gray-800">
+          <h2 className="text-lg font-semibold text-foreground">Account</h2>
         </div>
-        <div>
-          <label
-            htmlFor="display_name"
-            className="block mb-1 text-sm font-medium"
-          >
-            Display name
-          </label>
-          <input
-            id="display_name"
-            name="display_name"
-            defaultValue={profile?.display_name ?? ''}
-            className="w-full p-2 border rounded"
-          />
+
+        <div className="p-6 space-y-4">
+          {/* Email (read-only) */}
+          <div>
+            <label htmlFor="email" className="block mb-1 text-sm font-medium">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={user.email ?? ''}
+              disabled
+              className="w-full p-2 rounded-md border bg-muted text-foreground/80 cursor-not-allowed"
+            />
+          </div>
+
+          {/* Profile form */}
+          {/* ✅ อย่าใส่ method/encType เมื่อ action เป็น function */}
+          <form action={updateProfileAction} className="space-y-4">
+            <div>
+              <label
+                htmlFor="display_name"
+                className="block mb-1 text-sm font-medium"
+              >
+                Display name
+              </label>
+              <input
+                id="display_name"
+                name="display_name"
+                defaultValue={profile?.display_name ?? ''}
+                className="w-full p-2 rounded-md border bg-background"
+                placeholder="Your name"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="avatar_url"
+                className="block mb-1 text-sm font-medium"
+              >
+                Avatar URL
+              </label>
+              <input
+                id="avatar_url"
+                name="avatar_url"
+                type="url"
+                defaultValue={profile?.avatar_url ?? ''}
+                className="w-full p-2 rounded-md border bg-background"
+                placeholder="https://…"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Use a direct image link or configure storage upload later.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Save changes
+              </button>
+              <a
+                href="/settings"
+                className="px-4 py-2 rounded-md border hover:bg-muted"
+              >
+                Go to settings
+              </a>
+            </div>
+          </form>
         </div>
-        <div>
-          <label
-            htmlFor="avatar_url"
-            className="block mb-1 text-sm font-medium"
-          >
-            Avatar URL
-          </label>
-          <input
-            id="avatar_url"
-            name="avatar_url"
-            type="url"
-            defaultValue={profile?.avatar_url ?? ''}
-            className="w-full p-2 border rounded"
-          />
+      </div>
+
+      {/* Preview */}
+      {(profile?.avatar_url || profile?.display_name) && (
+        <div className="rounded-xl border bg-card dark:bg-gray-900/80 dark:border-gray-800">
+          <div className="p-4 border-b dark:border-gray-800">
+            <h2 className="text-lg font-semibold text-foreground">Preview</h2>
+          </div>
+          <div className="p-6 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-muted">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt="avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  N/A
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">Display name</div>
+              <div className="text-lg font-medium">
+                {profile?.display_name || '-'}
+              </div>
+            </div>
+          </div>
         </div>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Save Changes
-        </button>
-      </form>
+      )}
     </div>
   );
 }

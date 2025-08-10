@@ -1,18 +1,8 @@
-/*
- * Sidebar component
- *
- * This is a simplified and fully self‑contained version of the sidebar.  It
- * supports collapsing on large screens, a mobile drawer on small screens,
- * theme toggling, and role‑based filtering of navigation items.  Only
- * `admin` and `support` users will see dashboard/rooms/tenants/bookings
- * links. All roles will see profile, settings and help.
- */
-
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { signOut } from '@/lib/auth.client';
+import { cn } from '@/lib/utils';
 import {
   BedDouble,
   Calendar,
@@ -32,176 +22,147 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { useLocale as useNextIntlLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { cn } from '../../lib/utils';
 
 type SidebarItem = {
   id: string;
   label: string;
   href?: string;
   icon: React.ReactNode;
-  roles?: string[];
-  children?: SidebarItem[];
+  roles?: Array<'admin' | 'support' | 'user'>;
 };
 
-export default function Sidebar() {
+type SidebarProps = {
+  collapsed?: boolean;
+  setCollapsed?: React.Dispatch<React.SetStateAction<boolean>>;
+  mobileOpen?: boolean;
+  setMobileOpen?: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+export default function Sidebar(props: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const { theme, toggleMode } = useTheme();
-  const tNav = useTranslations('navigation');
-  const locale = useNextIntlLocale();
 
-  // Collapse state for desktop and open state for mobile
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // fallback states when not controlled
+  const [ic, setIc] = useState(false);
+  const [im, setIm] = useState(false);
 
-  // Filter items by role. If an item declares roles, the current user's role
-  // must be included. Items without a roles property are always shown.
-  const filterByRole = (items: SidebarItem[]) => {
-    return items.filter(it => {
-      if (!it.roles) return true;
-      const role = (user?.role as string) || 'user';
-      return it.roles.includes(role);
-    });
-  };
+  const collapsed = props.collapsed ?? ic;
+  const setCollapsed = props.setCollapsed ?? setIc;
+  const mobileOpen = props.mobileOpen ?? im;
+  const setMobileOpen = props.setMobileOpen ?? setIm;
 
-  // Main navigation items (restricted to admin/support)
+  const filterByRole = (items: SidebarItem[]) =>
+    items.filter(it => !it.roles || (user && it.roles.includes(user.role)));
+
   const mainItems: SidebarItem[] = useMemo(
-    () => [
-      {
-        id: 'dashboard',
-        label: tNav('dashboard'),
-        href: '/dashboard',
-        icon: <Home size={18} />, // shown for admin/support
-        roles: ['admin', 'support'],
-      },
-      {
-        id: 'rooms',
-        label: tNav('rooms'),
-        href: '/rooms',
-        icon: <BedDouble size={18} />,
-        roles: ['admin', 'support'],
-      },
-      {
-        id: 'tenants',
-        label: locale === 'th' ? 'ผู้เช่า' : 'Tenants',
-        href: '/tenants',
-        icon: <Users size={18} />,
-        roles: ['admin', 'support'],
-      },
-      {
-        id: 'bookings',
-        label: tNav('bookings'),
-        href: '/bookings',
-        icon: <Calendar size={18} />,
-        roles: ['admin', 'support'],
-      },
-    ],
-    [tNav, locale]
+    () =>
+      filterByRole([
+        {
+          id: 'dashboard',
+          label: 'Dashboard',
+          href: '/dashboard',
+          icon: <Home size={18} />,
+          roles: ['admin', 'support'],
+        },
+        {
+          id: 'rooms',
+          label: 'Rooms',
+          href: '/rooms',
+          icon: <BedDouble size={18} />,
+          roles: ['admin', 'support'],
+        },
+        {
+          id: 'tenants',
+          label: 'Tenants',
+          href: '/tenants',
+          icon: <Users size={18} />,
+          roles: ['admin', 'support'],
+        },
+        {
+          id: 'bookings',
+          label: 'Bookings',
+          href: '/bookings',
+          icon: <Calendar size={18} />,
+          roles: ['admin', 'support'],
+        },
+      ]),
+    [user?.role]
   );
 
-  // System items (reports, maintenance, integration). These are further
-  // restricted: reports and maintenance are for admin/support; integration
-  // only for admin.
   const systemItems: SidebarItem[] = useMemo(
     () =>
       filterByRole([
         {
           id: 'reports',
-          label: tNav('reports'),
+          label: 'Reports',
           href: '/reports',
           icon: <FileText size={18} />,
           roles: ['admin', 'support'],
         },
         {
           id: 'maintenance',
-          label: locale === 'th' ? 'งานซ่อมบำรุง' : 'Maintenance',
+          label: 'Maintenance',
           href: '/maintenance',
           icon: <Wrench size={18} />,
           roles: ['admin', 'support'],
         },
         {
           id: 'integration',
-          label: locale === 'th' ? 'การเชื่อมต่อ' : 'Integration',
+          label: 'Integration',
           href: '/integration',
           icon: <Shield size={18} />,
           roles: ['admin'],
         },
       ]),
-    [tNav, locale, user?.role]
+    [user?.role]
   );
 
-  // Account items (profile, settings, help). Available to all roles.
   const accountItems: SidebarItem[] = useMemo(
     () => [
       {
         id: 'profile',
-        label: tNav('profile'),
+        label: 'Profile',
         href: '/profile',
         icon: <User size={18} />,
       },
       {
         id: 'settings',
-        label: tNav('settings'),
+        label: 'Settings',
         href: '/settings',
         icon: <Cog size={18} />,
       },
       {
         id: 'help',
-        label: tNav('help'),
+        label: 'Help',
         href: '/help',
         icon: <HelpCircle size={18} />,
       },
     ],
-    [tNav]
+    []
   );
 
-  // Combine all sections with appropriate filtering
-  const sections = useMemo(() => {
-    return [
-      {
-        label: locale === 'th' ? 'หลัก' : 'Main',
-        items: filterByRole(mainItems),
-      },
-      { label: locale === 'th' ? 'ระบบ' : 'System', items: systemItems },
-      { label: locale === 'th' ? 'บัญชี' : 'Account', items: accountItems },
-    ];
-  }, [mainItems, systemItems, accountItems, user?.role]);
-
-  const handleLogout = async () => {
-    await signOut();
-    window.location.href = '/login';
-  };
-
-  // Render single item. If children exist they will be shown nested. Active
-  // state is determined by matching pathname.
   const renderItem = (item: SidebarItem) => {
-    const isActive =
+    const active =
       item.href &&
       (pathname === item.href || pathname.startsWith(item.href + '/'));
     return (
       <li key={item.id}>
-        {item.href ? (
+        {item.href && (
           <Link
             href={item.href}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors',
-              'hover:bg-accent/60',
-              isActive && 'bg-accent text-accent-foreground'
-            )}
             onClick={() => setMobileOpen(false)}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors hover:bg-accent/60',
+              active && 'bg-accent text-accent-foreground'
+            )}
           >
             {item.icon}
             {!collapsed && <span>{item.label}</span>}
           </Link>
-        ) : null}
-        {item.children && !collapsed && (
-          <ul className="ml-4 space-y-1 mt-1">
-            {item.children.map(child => renderItem(child))}
-          </ul>
         )}
       </li>
     );
@@ -209,7 +170,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu toggle */}
+      {/* Mobile toggle */}
       <button
         className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-background border shadow-md"
         onClick={() => setMobileOpen(v => !v)}
@@ -218,7 +179,7 @@ export default function Sidebar() {
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Overlay for mobile */}
+      {/* Overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
@@ -233,81 +194,70 @@ export default function Sidebar() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Header with brand and collapse button */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b">
           {!collapsed && (
-            <div className="text-lg font-semibold">
-              {locale === 'th' ? 'ระบบหอพัก' : 'Rooms System'}
-            </div>
+            <div className="text-lg font-semibold">Rooms System</div>
           )}
           <button
             className="hidden lg:block p-2 rounded-md hover:bg-accent/50"
             onClick={() => setCollapsed(v => !v)}
-            aria-label={
-              collapsed
-                ? locale === 'th'
-                  ? 'ขยาย'
-                  : 'Expand'
-                : locale === 'th'
-                  ? 'ย่อ'
-                  : 'Collapse'
-            }
+            aria-label={collapsed ? 'Expand' : 'Collapse'}
           >
             {collapsed ? <ChevronRight /> : <ChevronLeft />}
           </button>
         </div>
-        {/* Navigation sections */}
+
+        {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-6">
-          {sections.map(section => (
-            <div key={section.label}>
-              {!collapsed && (
-                <div className="text-xs uppercase font-semibold text-muted-foreground mb-2 px-3">
-                  {section.label}
-                </div>
-              )}
-              <ul className="space-y-1">
-                {section.items.map(item => renderItem(item))}
-              </ul>
-            </div>
-          ))}
+          <div>
+            {!collapsed && (
+              <div className="text-xs uppercase font-semibold text-muted-foreground mb-2 px-3">
+                Main
+              </div>
+            )}
+            <ul className="space-y-1">{mainItems.map(renderItem)}</ul>
+          </div>
+          <div>
+            {!collapsed && (
+              <div className="text-xs uppercase font-semibold text-muted-foreground mb-2 px-3">
+                System
+              </div>
+            )}
+            <ul className="space-y-1">{systemItems.map(renderItem)}</ul>
+          </div>
+          <div>
+            {!collapsed && (
+              <div className="text-xs uppercase font-semibold text-muted-foreground mb-2 px-3">
+                Account
+              </div>
+            )}
+            <ul className="space-y-1">{accountItems.map(renderItem)}</ul>
+          </div>
         </nav>
-        {/* Footer with theme toggle, logout and user info */}
+
+        {/* Footer */}
         <div className="border-t px-4 py-4 space-y-3">
-          {/* Theme toggle */}
           <button
             onClick={toggleMode}
             className="flex items-center gap-3 w-full px-2 py-2 rounded-md hover:bg-accent/60"
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             {!collapsed && (
-              <span>
-                {theme === 'dark'
-                  ? locale === 'th'
-                    ? 'โหมดสว่าง'
-                    : 'Light Mode'
-                  : locale === 'th'
-                    ? 'โหมดมืด'
-                    : 'Dark Mode'}
-              </span>
+              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
             )}
           </button>
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
+          <a
+            href="/logout"
             className="flex items-center gap-3 w-full px-2 py-2 rounded-md hover:bg-accent/60"
           >
             <LogOut size={18} />
-            {!collapsed && (
-              <span>{locale === 'th' ? 'ออกจากระบบ' : 'Logout'}</span>
-            )}
-          </button>
-          {/* User info */}
+            {!collapsed && <span>Logout</span>}
+          </a>
           {!collapsed && user && (
             <div className="text-xs text-muted-foreground px-2">
               <div>{user.email}</div>
-              <div className="capitalize">
-                {(user.role as string) || 'user'}
-              </div>
+              <div className="capitalize">{user.role}</div>
             </div>
           )}
         </div>

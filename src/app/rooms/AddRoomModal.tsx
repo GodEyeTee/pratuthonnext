@@ -1,81 +1,70 @@
 'use client';
 
-import { Button } from '@/components/ui/Button';
-import { cn } from '@/lib/utils';
-import { Plus, X } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
-import RoomForm from './components/RoomForm';
+import { useState, useTransition } from 'react';
+import { createRoomAction } from './actions';
 
-export default function AddRoomModal({
-  triggerClassName,
-  triggerLabel,
-}: {
-  triggerClassName?: string;
-  triggerLabel?: string;
-}) {
-  const t = useTranslations('rooms');
+export default function AddRoomModal() {
   const [open, setOpen] = useState(false);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    if (open) document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
-
-  function onClickOverlay(e: React.MouseEvent) {
-    // close when clicking outside dialog
-    if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
-      setOpen(false);
-    }
-  }
+  const submit = (formData: FormData) => {
+    setError(null);
+    startTransition(async () => {
+      const res = await createRoomAction(formData);
+      if (res?.error) setError(res.error);
+      else setOpen(false);
+    });
+  };
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className={triggerClassName}>
-        <Plus className="mr-2 h-4 w-4" />
-        {triggerLabel ?? t('addRoom')}
-      </Button>
-
+      <button
+        onClick={() => setOpen(true)}
+        className="px-3 py-2 rounded bg-emerald-600 text-white"
+      >
+        Add Room
+      </button>
       {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          aria-modal="true"
-          role="dialog"
-          onMouseDown={onClickOverlay}
-        >
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-
-          {/* Dialog */}
-          <div
-            ref={dialogRef}
-            className={cn(
-              'relative z-10 w-full max-w-2xl',
-              'rounded-2xl border bg-background text-foreground shadow-xl',
-              'dark:border-gray-800'
-            )}
-            onMouseDown={e => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-800">
-              <h3 className="text-lg font-semibold">{t('addRoom')}</h3>
-              <button
-                className="p-2 rounded-md hover:bg-accent/60"
-                aria-label="Close"
-                onClick={() => setOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Content: ใช้ RoomForm เดิม (บันทึกเสร็จจะ push('/rooms') + refresh เอง ทำให้ modal ปิดเองจากการรีเฟรชคอมโพเนนต์) */}
-            <div className="p-4 sm:p-6">
-              <RoomForm />
-            </div>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 w-full max-w-lg">
+            <h3 className="text-lg font-semibold mb-3">Create Room</h3>
+            {/* ห้ามใส่ method/encType ถ้า action เป็น function */}
+            <form action={submit} className="space-y-3">
+              <input
+                name="number"
+                placeholder="Number"
+                className="w-full rounded border p-2"
+              />
+              <input
+                name="type"
+                placeholder="Type"
+                className="w-full rounded border p-2"
+              />
+              <input
+                name="status"
+                placeholder="Status"
+                defaultValue="available"
+                className="w-full rounded border p-2"
+              />
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="px-3 py-2 rounded border"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </form>
           </div>
         </div>
       )}

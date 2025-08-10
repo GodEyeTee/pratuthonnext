@@ -96,20 +96,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authUser: User
   ): Promise<UserWithRole | null> => {
     try {
-      // 1) หาจาก id ก่อน
+      // 1) by id
       let profile = await selectProfileById(authUser.id);
 
-      // 2) ถ้าไม่เจอและมีอีเมล ลองหาโดย email (กันกรณี id mismatch)
+      // 2) fallback by email
       if (!profile && authUser.email) {
         profile = await selectProfileByEmail(authUser.email);
       }
 
-      // 3) ถ้าไม่เจอจริง ๆ ค่อยสร้างแถวเริ่มต้น (role=user)
+      // 3) create default profile
       if (!profile) {
         profile = await insertDefaultProfile(authUser);
       }
 
-      // 4) รวมข้อมูล (fallback ไป metadata ถ้าจำเป็น)
+      // 4) merge
       const role: UserRole =
         (profile?.role as UserRole | null) ??
         (authUser.user_metadata?.role as UserRole | undefined) ??
@@ -128,21 +128,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userWithRole: UserWithRole = {
         id: authUser.id,
-        email: authUser.email || '',
+        // make email optional (undefined when null)
+        email: authUser.email ?? undefined,
         role,
         name,
         avatar_url,
-        created_at: profile?.created_at || authUser.created_at,
+        created_at: profile?.created_at ?? authUser.created_at,
         updated_at:
-          profile?.updated_at || authUser.updated_at || authUser.created_at,
+          profile?.updated_at ?? authUser.updated_at ?? authUser.created_at,
         email_verified: !!authUser.email_confirmed_at,
-        last_sign_in_at: authUser.last_sign_in_at || undefined,
+        last_sign_in_at: authUser.last_sign_in_at ?? undefined,
       };
 
+      // sentry user context expects email?: string (not null)
       setUserContext({
         id: userWithRole.id,
-        email: userWithRole.email,
-        name: userWithRole.name,
+        email: userWithRole.email, // string | undefined
+        name: userWithRole.name, // string | undefined
       });
 
       return userWithRole;

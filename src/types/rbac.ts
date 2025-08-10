@@ -1,19 +1,10 @@
 /*
  * RBAC type definitions
- *
- * These interfaces define the shape of roles, permissions and protected
- * routes used throughout the application. Keeping types centralized helps
- * maintain consistency when adding new roles or permissions.
  */
 
-// Roles available in the system
 export type UserRole = 'admin' | 'support' | 'user';
-
-// Simple string alias for permission names
 export type Permission = string;
 
-// Definition of a role and its permissions. A description can be provided
-// for UI display in multiple languages.
 export interface RolePermissions {
   role: UserRole;
   permissions: Permission[];
@@ -23,11 +14,37 @@ export interface RolePermissions {
   };
 }
 
-// A protected route describes which roles may access a path and which
-// permissions are required. Middleware uses this to enforce access
-// restrictions.
 export interface ProtectedRoute {
   path: string;
   allowedRoles: UserRole[];
   requiredPermissions: Permission[];
+}
+
+/** Used across app (Auth + Sentry + UI) */
+export interface UserWithRole {
+  id: string;
+  role: UserRole;
+  email?: string; // optional string (not null) to match Sentry typing
+  name?: string;
+  avatar_url?: string;
+  created_at?: string;
+  updated_at?: string;
+  email_verified?: boolean;
+  last_sign_in_at?: string;
+}
+
+/** Props for role guard component */
+export interface RoleGuardProps {
+  allowedRoles: UserRole[];
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  redirectTo?: string;
+}
+
+/** Props for permission guard component */
+export interface PermissionGuardProps {
+  requiredPermissions: Permission[];
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  requireAll?: boolean; // default true
 }

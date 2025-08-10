@@ -1,19 +1,8 @@
-/*
- * RoomForm component
- *
- * This client component renders a form for creating or updating a room. It
- * delegates the actual database write to server actions defined in
- * `src/app/rooms/actions.ts`. By using server actions, no Supabase
- * credentials are exposed to the client and the form submission can
- * revalidate the rooms listing automatically.
- */
-
 'use client';
 
 import { useState, useTransition } from 'react';
 import { createRoomAction, updateRoomAction } from '../actions';
 
-// Define the shape of a room that can be passed as initial data
 export interface RoomFormProps {
   initial?: {
     id: string;
@@ -37,93 +26,82 @@ export default function RoomForm({ initial }: RoomFormProps) {
     setError(null);
     startTransition(async () => {
       const action = isEdit ? updateRoomAction : createRoomAction;
-      const result = await action({}, formData);
-      if (result?.error) {
-        setError(result.error);
-      }
+      const result = await action(formData);
+      if (result?.error) setError(result.error);
     });
   };
 
   return (
+    // ห้ามใส่ method / encType เมื่อ action เป็น function
     <form action={handleSubmit} className="space-y-4">
       {isEdit && <input type="hidden" name="id" defaultValue={initial?.id} />}
-      <div>
-        <label className="block mb-1 text-sm font-medium">Number</label>
-        <input
-          name="number"
-          type="text"
-          defaultValue={initial?.number ?? ''}
-          required
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label className="block mb-1 text-sm font-medium">Type</label>
-        <input
-          name="type"
-          type="text"
-          defaultValue={initial?.type ?? ''}
-          required
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label className="block mb-1 text-sm font-medium">Status</label>
-        <select
-          name="status"
-          defaultValue={initial?.status ?? 'available'}
-          className="w-full p-2 border rounded"
-        >
-          <option value="available">Available</option>
-          <option value="occupied">Occupied</option>
-          <option value="maintenance">Maintenance</option>
-        </select>
-      </div>
-      <div>
-        <label className="block mb-1 text-sm font-medium">Floor</label>
-        <input
-          name="floor"
-          type="number"
-          defaultValue={initial?.floor ?? ''}
-          min={0}
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block mb-1 text-sm font-medium">Daily Rate</label>
+          <label className="block text-sm font-medium mb-1">Number</label>
+          <input
+            name="number"
+            defaultValue={initial?.number ?? ''}
+            className="w-full rounded border p-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Type</label>
+          <input
+            name="type"
+            defaultValue={initial?.type ?? ''}
+            className="w-full rounded border p-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Status</label>
+          <input
+            name="status"
+            defaultValue={initial?.status ?? 'available'}
+            className="w-full rounded border p-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Floor</label>
+          <input
+            name="floor"
+            type="number"
+            defaultValue={initial?.floor ?? ''}
+            className="w-full rounded border p-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Daily Rate</label>
           <input
             name="rate_daily"
             type="number"
             step="0.01"
             defaultValue={initial?.rate_daily ?? ''}
-            className="w-full p-2 border rounded"
+            className="w-full rounded border p-2"
           />
         </div>
         <div>
-          <label className="block mb-1 text-sm font-medium">Monthly Rate</label>
+          <label className="block text-sm font-medium mb-1">Monthly Rate</label>
           <input
             name="rate_monthly"
             type="number"
             step="0.01"
             defaultValue={initial?.rate_monthly ?? ''}
-            className="w-full p-2 border rounded"
+            className="w-full rounded border p-2"
           />
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block mb-1 text-sm font-medium">Water Rate</label>
+          <label className="block text-sm font-medium mb-1">Water Rate</label>
           <input
             name="water_rate"
             type="number"
             step="0.01"
             defaultValue={initial?.water_rate ?? ''}
-            className="w-full p-2 border rounded"
+            className="w-full rounded border p-2"
           />
         </div>
         <div>
-          <label className="block mb-1 text-sm font-medium">
+          <label className="block text-sm font-medium mb-1">
             Electric Rate
           </label>
           <input
@@ -131,18 +109,22 @@ export default function RoomForm({ initial }: RoomFormProps) {
             type="number"
             step="0.01"
             defaultValue={initial?.electric_rate ?? ''}
-            className="w-full p-2 border rounded"
+            className="w-full rounded border p-2"
           />
         </div>
       </div>
+
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-      >
-        {isPending ? 'Saving…' : isEdit ? 'Update Room' : 'Create Room'}
-      </button>
+
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+        >
+          {isEdit ? 'Update' : 'Create'}
+        </button>
+      </div>
     </form>
   );
 }

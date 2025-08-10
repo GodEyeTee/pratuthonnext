@@ -1,17 +1,15 @@
 /*
  * Utility functions
- *
- * This file defines helper utilities used throughout the project. At the
- * moment it contains a `cn` function for concatenating CSS class names
- * conditionally. You can add more helpers here as needed.
+ * - broadened `cn` types to avoid TS errors when passing ReactNode-derived values
  */
 
-/**
- * Concatenate class names conditionally. Accepts any number of arguments
- * (strings, booleans, null/undefined). Falsy values are ignored.
- */
 export function cn(
-  ...args: Array<string | boolean | undefined | null>
+  ...args: Array<string | number | bigint | boolean | null | undefined>
 ): string {
-  return args.filter(Boolean).join(' ');
+  // keep only non-empty strings; ignore numbers/booleans at runtime
+  const classes: string[] = [];
+  for (const v of args) {
+    if (typeof v === 'string' && v) classes.push(v);
+  }
+  return classes.join(' ');
 }
