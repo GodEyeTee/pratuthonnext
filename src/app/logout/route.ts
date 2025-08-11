@@ -1,17 +1,11 @@
-import 'server-only';
-
-import { clearSessionCookie } from '@/lib/auth.server';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-// รองรับทั้ง GET/POST
-export async function GET(request: Request) {
-  try {
-    // ลบคุกกี้ session ของ Firebase (HttpOnly) ฝั่งเซิร์ฟเวอร์
-    await clearSessionCookie();
-  } catch {
-    // เงียบไว้ ต่อให้ล้มเหลว เราก็ redirect ต่อ
-  }
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || '__session';
 
+export async function GET(request: Request) {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE_NAME);
   const { origin } = new URL(request.url);
   return NextResponse.redirect(`${origin}/login`);
 }

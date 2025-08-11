@@ -1,62 +1,55 @@
-import {
-  AUTH_ROUTES,
-  PROTECTED_ROUTES,
-  PUBLIC_ROUTES,
-  ROLE_REDIRECTS,
-} from '@/lib/rbac.config';
-import type { UserRole } from '@/types/rbac';
+// src/middleware.ts
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-// ใช้คุกกี้ session ของ Firebase (ตั้งชื่อได้ผ่าน ENV; ดีฟอลต์ '__session')
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || '__session';
+// หน้า/เส้นทางที่ไม่ต้องมีเซสชัน
+const PUBLIC_PATHS = new Set<string>([
+  '/', // landing
+  '/login',
+  '/favicon.ico',
+]);
 
-function hasSessionCookie(req: NextRequest) {
-  return req.cookies.has(SESSION_COOKIE_NAME);
-}
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
 
-export async function middleware(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
-
-  // ข้ามไฟล์ static / api
+  // 1) อนุญาต static/_next/assets เสมอ
   if (
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/api') ||
-    pathname.match(/\.[^/]+$/)
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/assets') ||
+    pathname.startsWith('/public')
   ) {
     return NextResponse.next();
   }
 
-  // public pages → ผ่านเลย
-  if (PUBLIC_ROUTES.some(r => pathname.startsWith(r))) {
+  // 2) อนุญาต API ที่ต้องเข้าถึงได้ก่อนมีเซสชัน
+  //    สำคัญสุด: /api/auth/session (ไว้แลกคุกกี้หลัง Google sign-in)
+  if (
+    pathname.startsWith('/api/auth/session') ||
+    pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/public')
+  ) {
     return NextResponse.next();
   }
 
-  const isAuthed = hasSessionCookie(request);
-
-  // มี session แล้วแต่ไปหน้า auth → เด้งออกตาม role
-  if (isAuthed && AUTH_ROUTES.some(r => pathname.startsWith(r))) {
-    const redirectPath = ROLE_REDIRECTS['user' as UserRole] ?? '/dashboard';
-    return NextResponse.redirect(new URL(redirectPath, request.url));
+  // 3) หน้า public ปล่อยผ่าน
+  if (PUBLIC_PATHS.has(pathname)) {
+    return NextResponse.next();
   }
 
-  // เส้นทางที่ต้องล็อกอิน
-  const protectedEntry = PROTECTED_ROUTES.find(r =>
-    pathname.startsWith(r.path)
-  );
-  if (protectedEntry) {
-    if (!isAuthed) {
-      const loginUrl = new URL('/login', request.url);
-      const ret = pathname + (search ?? '');
-      loginUrl.searchParams.set('redirectTo', ret);
-      return NextResponse.redirect(loginUrl);
-    }
-    // เช็ค role/permission ต่อที่ฝั่งเพจหรือเซิร์ฟเวอร์
+  // 4) ที่เหลือ ต้องมีคุกกี้เซสชัน
+  const hasSession = req.cookies.has(cookieName);
+  if (!hasSession) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
 }
 
+// matcher: ครอบคลุมทุกเส้นทาง ยกเว้นไฟล์ระบบพื้นฐาน
 export const config = {
-  matcher: '/:path*',
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

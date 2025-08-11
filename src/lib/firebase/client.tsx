@@ -1,38 +1,29 @@
-'use client';
 /**
- * Firebase Client SDK Configuration (Next.js 15+)
- * - Client-only
- * - Safe singleton init (no FirebaseApp | undefined)
- * - Firestore: persistent local cache + multi-tab
- * - Analytics: dynamic import + isSupported()
+ * Firebase Client SDK (Browser)
+ * Next.js 15 compatible, singleton-safe, clean & optimized
+ *
+ * - Firestore: initializeFirestore + persistentLocalCache (multi-tab)
+ * - Auth persistence: LOCAL (stay signed-in)
+ * - Analytics: lazy load with isSupported()
  */
 
-import {
-  getApps,
-  initializeApp,
-  type FirebaseApp,
-  type FirebaseOptions,
-} from 'firebase/app';
+import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
+import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   browserLocalPersistence,
-  browserSessionPersistence,
-  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   getAuth,
   GoogleAuthProvider,
-  indexedDBLocalPersistence,
   onAuthStateChanged,
-  sendPasswordResetEmail,
   setPersistence,
-  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
-  updateProfile,
   type Auth,
   type User,
 } from 'firebase/auth';
 import {
   CACHE_SIZE_UNLIMITED,
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -40,166 +31,143 @@ import {
 } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
-const isBrowser = typeof window !== 'undefined';
-
-/* ----------------------------- Env (point access only) ----------------------------- */
-/** สำคัญ: อ้าง process.env แบบ “จุด” เท่านั้น เพื่อให้ Next inline ค่าตอน build */
+/* -------------------------------------------------------------------------- */
+/*  Env (อ่านแบบ "คงที่" ทีละตัว เพื่อให้ Next inline ตอน build)             */
+/* -------------------------------------------------------------------------- */
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 const AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-const MESSAGING_SENDERID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+const MSG_SENDER_ID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
 const APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
 const MEASUREMENT_ID = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
-function validateEnv() {
-  if (!API_KEY || !AUTH_DOMAIN || !PROJECT_ID) {
-    throw new Error(
-      '[Firebase] Missing required env: NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, NEXT_PUBLIC_FIREBASE_PROJECT_ID'
-    );
-  }
-}
+// ตรวจ required env แบบชัด ๆ (ห้ามใช้ process.env[key] แบบไดนามิกในฝั่ง client)
+if (!API_KEY)
+  throw new Error(
+    '[Firebase] Missing required env: NEXT_PUBLIC_FIREBASE_API_KEY'
+  );
+if (!AUTH_DOMAIN)
+  throw new Error(
+    '[Firebase] Missing required env: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'
+  );
+if (!PROJECT_ID)
+  throw new Error(
+    '[Firebase] Missing required env: NEXT_PUBLIC_FIREBASE_PROJECT_ID'
+  );
 
-/* --------------------------------- Config -------------------------------- */
-const firebaseConfig: FirebaseOptions = {
+const firebaseConfig = {
   apiKey: API_KEY,
   authDomain: AUTH_DOMAIN,
   projectId: PROJECT_ID,
   storageBucket: STORAGE_BUCKET,
-  messagingSenderId: MESSAGING_SENDERID,
+  messagingSenderId: MSG_SENDER_ID,
   appId: APP_ID,
-  measurementId: MEASUREMENT_ID,
+  measurementId: MEASUREMENT_ID, // optional
 };
 
-/* ------------------------ Safe singleton initialization ------------------- */
-function getOrInitClientApp(config: FirebaseOptions): FirebaseApp {
-  validateEnv();
-  const apps = getApps();
-  return apps.length > 0 ? apps[0]! : initializeApp(config);
+/* -------------------------------------------------------------------------- */
+/*  Singletons (กัน HMR ซ้ำใน dev)                                           */
+/* -------------------------------------------------------------------------- */
+const g = globalThis as unknown as {
+  __FBCACHE__?: {
+    app?: FirebaseApp;
+    auth?: Auth;
+    db?: Firestore;
+    storage?: FirebaseStorage;
+    analytics?: Analytics | null;
+    analyticsInit?: Promise<Analytics | null>;
+    persistenceApplied?: boolean;
+  };
+};
+g.__FBCACHE__ ||= {};
+
+// App
+const app: FirebaseApp =
+  g.__FBCACHE__!.app ??
+  (getApps().length ? getApps()[0]! : initializeApp(firebaseConfig));
+g.__FBCACHE__!.app = app;
+
+// Firestore (local persistent cache, multi-tab)
+if (!g.__FBCACHE__!.db) {
+  initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+  g.__FBCACHE__!.db = getFirestore(app);
+}
+const db: Firestore = g.__FBCACHE__!.db!;
+
+// Auth
+const auth: Auth = g.__FBCACHE__!.auth ?? getAuth(app);
+g.__FBCACHE__!.auth = auth;
+
+// Storage
+const storage: FirebaseStorage = g.__FBCACHE__!.storage ?? getStorage(app);
+g.__FBCACHE__!.storage = storage;
+
+// Apply auth persistence (LOCAL) ครั้งเดียว
+if (typeof window !== 'undefined' && !g.__FBCACHE__!.persistenceApplied) {
+  setPersistence(auth, browserLocalPersistence).catch(() => {});
+  g.__FBCACHE__!.persistenceApplied = true;
 }
 
-/* === Exports (named only) ================================================= */
-export const app: FirebaseApp = getOrInitClientApp(firebaseConfig);
+/* -------------------------------------------------------------------------- */
+/*  Analytics (lazy)                                                          */
+/* -------------------------------------------------------------------------- */
+export async function loadAnalytics(): Promise<Analytics | null> {
+  if (typeof window === 'undefined') return null;
+  if (!MEASUREMENT_ID) return null;
 
-/* --------------------------------- Auth ---------------------------------- */
-export const auth: Auth = getAuth(app);
-
-// กำหนด persistence: IndexedDB → localStorage → session (เว็บ)
-if (isBrowser) {
-  setPersistence(auth, indexedDBLocalPersistence)
-    .catch(() => setPersistence(auth, browserLocalPersistence))
-    .catch(() => setPersistence(auth, browserSessionPersistence))
-    .catch(e => {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('[Firebase] Failed to set auth persistence:', e);
-      }
-    });
-
-  try {
-    auth.languageCode = navigator?.language ?? 'en';
-  } catch {
-    /* no-op */
+  if (!g.__FBCACHE__!.analyticsInit) {
+    g.__FBCACHE__!.analyticsInit = isSupported()
+      .then(ok => (ok ? getAnalytics(app) : null))
+      .catch(() => null);
   }
+  g.__FBCACHE__!.analytics = await g.__FBCACHE__!.analyticsInit;
+  return g.__FBCACHE__!.analytics ?? null;
 }
 
-/* ------------------------------ Firestore DB ------------------------------ */
-// ใช้ cache รุ่นใหม่ + multi-tab (แนวทาง offline/persistence)
-export const db: Firestore = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-    tabManager: persistentMultipleTabManager(),
-  }),
-});
-
-/* -------------------------------- Storage -------------------------------- */
-export const storage: FirebaseStorage = getStorage(app);
-
-/* ------------------------------- Analytics -------------------------------- */
-// โหลดเฉพาะเมื่อรองรับ (กันปัญหา Next/SSR)
-export type { Analytics } from 'firebase/analytics';
-export async function loadAnalytics() {
-  if (!isBrowser) return null;
-  try {
-    const { isSupported, getAnalytics } = await import('firebase/analytics');
-    return (await isSupported()) ? getAnalytics(app) : null;
-  } catch (e) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('[Firebase] Analytics not available:', e);
-    }
-    return null;
-  }
-}
-
-/* ------------------------------- Providers -------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*  Auth helpers                                                              */
+/* -------------------------------------------------------------------------- */
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-/* -------------------------------- Helpers --------------------------------- */
+type AuthResult =
+  | { user: User; error: null }
+  | { user: null; error: string | null };
+
 export const authHelpers = {
-  async signInWithGoogle(): Promise<{
-    user: User | null;
-    error: string | null;
-  }> {
+  async signInWithGoogle(): Promise<AuthResult> {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return { user: result.user, error: null };
-    } catch (err: any) {
-      if (
-        isBrowser &&
-        (err?.code === 'auth/popup-blocked' ||
-          err?.code === 'auth/operation-not-supported-in-this-environment')
-      ) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return { user: null, error: null };
-        } catch (e: any) {
-          return { user: null, error: e?.message ?? 'Google sign-in failed' };
-        }
+      if (typeof window === 'undefined')
+        return { user: null, error: 'Client only' };
+      try {
+        const { user } = await signInWithPopup(auth, googleProvider);
+        return { user, error: null };
+      } catch {
+        // บางเคส (iOS Safari / popup blocker) — fallback เป็น redirect
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithRedirect(auth, googleProvider);
+        // หลัง redirect กลับมา หน้า caller จะต้อง handle เอง
+        return { user: null, error: null };
       }
-      return { user: null, error: err?.message ?? 'Google sign-in failed' };
-    }
-  },
-
-  async signInWithEmail(email: string, password: string) {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      return { user: result.user, error: null };
     } catch (e: any) {
-      return { user: null, error: e?.message ?? 'Email sign-in failed' };
+      console.error('Google sign-in error:', e);
+      return { user: null, error: e?.message ?? 'Sign-in failed' };
     }
   },
 
-  async createAccount(email: string, password: string, displayName?: string) {
-    try {
-      const result = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      if (displayName) {
-        await updateProfile(result.user, { displayName }).catch(() => {});
-      }
-      return { user: result.user, error: null };
-    } catch (e: any) {
-      return { user: null, error: e?.message ?? 'Account creation failed' };
-    }
-  },
-
-  async signOut() {
+  async signOut(): Promise<{ error: string | null }> {
     try {
       await firebaseSignOut(auth);
       return { error: null };
     } catch (e: any) {
-      return { error: e?.message ?? 'Sign out failed' };
-    }
-  },
-
-  async resetPassword(email: string) {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      return { error: null };
-    } catch (e: any) {
-      return { error: e?.message ?? 'Password reset failed' };
+      console.error('Sign out error:', e);
+      return { error: e?.message ?? 'Sign-out failed' };
     }
   },
 
@@ -212,12 +180,17 @@ export const authHelpers = {
   },
 
   async getIdToken(forceRefresh = false): Promise<string | null> {
-    const user = auth.currentUser;
-    if (!user) return null;
+    const u = auth.currentUser;
+    if (!u) return null;
     try {
-      return await user.getIdToken(forceRefresh);
-    } catch {
+      return await u.getIdToken(forceRefresh);
+    } catch (e) {
+      console.error('Get ID token error:', e);
       return null;
     }
   },
 };
+
+/* -------------------------------------------------------------------------- */
+export { app, auth, db, storage };
+export default { app, auth, db, storage, loadAnalytics, authHelpers };
