@@ -80,7 +80,7 @@ export default async function RoomsPage({
 
       <RoomsToolbar defaultQuery={sp} total={total} />
 
-      <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-2xl border bg-card shadow-sm overflow-visible relative">
         <div className="sticky top-0 z-10 bg-muted/60 backdrop-blur px-4 py-3 text-sm text-muted-foreground">
           <div className="grid grid-cols-[48px_1.2fr_.9fr_.9fr_.7fr_.8fr_.8fr_80px]">
             <div className="px-2">
