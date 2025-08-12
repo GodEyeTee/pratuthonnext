@@ -2,28 +2,47 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-// หน้า/เส้นทางที่ไม่ต้องมีเซสชัน
+// Public paths that don't require authentication
 const PUBLIC_PATHS = new Set<string>([
-  '/', // landing
+  '/',
   '/login',
-  '/favicon.ico',
+  '/logout',
+  '/auth/callback',
+  '/locale',
+  '/api/health',
 ]);
+
+// Paths that require specific roles
+const ROLE_PROTECTED_PATHS: Record<string, string[]> = {
+  '/admin': ['admin'],
+  '/rooms': ['admin', 'support'],
+  '/tenants': ['admin', 'support'],
+  '/bookings': ['admin', 'support'],
+  '/reports': ['admin', 'support'],
+  '/dashboard': ['admin', 'support'],
+  '/profile': ['admin', 'support', 'user'],
+  '/settings': ['admin', 'support', 'user'],
+  '/help': ['admin', 'support', 'user'],
+};
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
+  const sessionCookieName = process.env.SESSION_COOKIE_NAME || '__session';
 
-  // 1) อนุญาต static/_next/assets เสมอ
+  // 1) Allow static files and assets
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/assets') ||
-    pathname.startsWith('/public')
+    pathname.startsWith('/public') ||
+    pathname.includes('/favicon.ico') ||
+    pathname.includes('.png') ||
+    pathname.includes('.jpg') ||
+    pathname.includes('.svg')
   ) {
     return NextResponse.next();
   }
 
-  // 2) อนุญาต API ที่ต้องเข้าถึงได้ก่อนมีเซสชัน
-  //    สำคัญสุด: /api/auth/session (ไว้แลกคุกกี้หลัง Google sign-in)
+  // 2) Allow API routes that need to be accessible before authentication
   if (
     pathname.startsWith('/api/auth/session') ||
     pathname.startsWith('/api/health') ||
@@ -32,24 +51,52 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3) หน้า public ปล่อยผ่าน
+  // 3) Allow public pages
   if (PUBLIC_PATHS.has(pathname)) {
+    // If user is already logged in and tries to access login page, redirect to appropriate dashboard
+    if (pathname === '/login') {
+      const hasSession = req.cookies.has(sessionCookieName);
+      if (hasSession) {
+        const url = req.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
+    }
     return NextResponse.next();
   }
 
-  // 4) ที่เหลือ ต้องมีคุกกี้เซสชัน
-  const hasSession = req.cookies.has(cookieName);
+  // 4) Check for authentication for protected routes
+  const hasSession = req.cookies.has(sessionCookieName);
+
   if (!hasSession) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('redirect', pathname);
+    // Preserve the original path for redirect after login
+    if (pathname !== '/') {
+      url.searchParams.set('redirect', pathname);
+    }
     return NextResponse.redirect(url);
   }
 
+  // 5) Role-based access control (RBAC)
+  // Note: Actual role checking happens in the server components/API routes
+  // since we can't decode the session cookie in middleware without the Firebase Admin SDK
+  // This is just a basic check - detailed RBAC is handled server-side
+
+  // Allow the request to proceed - actual role validation happens in the page/API
   return NextResponse.next();
 }
 
-// matcher: ครอบคลุมทุกเส้นทาง ยกเว้นไฟล์ระบบพื้นฐาน
+// Configure which paths the middleware should run on
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+  ],
 };

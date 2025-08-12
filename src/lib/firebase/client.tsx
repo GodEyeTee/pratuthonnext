@@ -1,3 +1,4 @@
+// src/lib/firebase/client.tsx
 /**
  * Firebase Client SDK (Browser)
  * Next.js 15 compatible, singleton-safe, clean & optimized
@@ -11,13 +12,17 @@ import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   browserLocalPersistence,
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
+  updateProfile,
   type Auth,
   type User,
 } from 'firebase/auth';
@@ -158,6 +163,50 @@ export const authHelpers = {
     } catch (e: any) {
       console.error('Google sign-in error:', e);
       return { user: null, error: e?.message ?? 'Sign-in failed' };
+    }
+  },
+
+  async signInWithEmail(email: string, password: string): Promise<AuthResult> {
+    try {
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      return { user, error: null };
+    } catch (e: any) {
+      console.error('Email sign-in error:', e);
+      return { user: null, error: e?.message ?? 'Sign-in failed' };
+    }
+  },
+
+  async createAccount(
+    email: string,
+    password: string,
+    displayName?: string
+  ): Promise<AuthResult> {
+    try {
+      const { user } = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      // Update display name if provided
+      if (displayName) {
+        await updateProfile(user, { displayName });
+      }
+
+      return { user, error: null };
+    } catch (e: any) {
+      console.error('Create account error:', e);
+      return { user: null, error: e?.message ?? 'Account creation failed' };
+    }
+  },
+
+  async resetPassword(email: string): Promise<{ error: string | null }> {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { error: null };
+    } catch (e: any) {
+      console.error('Password reset error:', e);
+      return { error: e?.message ?? 'Password reset failed' };
     }
   },
 
