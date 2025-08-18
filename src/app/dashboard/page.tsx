@@ -1,4 +1,7 @@
+// src/app/dashboard/page.tsx
 // Server Component
+import DayOverviewCard from '@/components/widgets/DayOverviewCard';
+import WeatherCard from '@/components/widgets/WeatherCard';
 import { getCurrentSession } from '@/lib/auth.server';
 import { Activity, CalendarDays, Hotel, Users, Wrench } from 'lucide-react';
 
@@ -12,7 +15,7 @@ export default async function DashboardPage() {
       <div className="p-6">
         <h1 className="text-xl font-semibold mb-2">Dashboard</h1>
         <p className="text-muted-foreground">
-          You are not signed in.{' '}
+          You are not signed in{' '}
           <a href="/login" className="text-blue-600 underline">
             Login
           </a>
@@ -21,7 +24,6 @@ export default async function DashboardPage() {
     );
   }
 
-  // demo stats เหมือนของเดิม
   const stats = [
     {
       label: 'Total Rooms',
@@ -75,6 +77,27 @@ export default async function DashboardPage() {
     { date: 'Aug 12', name: 'J. Arun', room: 'C-101', type: 'Check-out' },
   ];
 
+  // ---- Day Overview data ----
+  const todos = [
+    {
+      text: 'Review maintenance ticket • A-203 (Aircon)',
+      color: 'bg-rose-500',
+    },
+    { text: 'Confirm today check-ins with FO team', color: 'bg-emerald-500' },
+    { text: 'Update weekly occupancy note', color: 'bg-sky-500' },
+  ];
+
+  const eventColorByType: Record<string, string> = {
+    'Check-in': 'bg-emerald-500',
+    'Check-out': 'bg-amber-500',
+  };
+
+  const events = upcoming.map(u => ({
+    text: `${u.type}: ${u.name} • Room ${u.room} (${u.date})`,
+    color: eventColorByType[u.type] ?? 'bg-amber-500',
+  }));
+  // ---------------------------
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -83,42 +106,69 @@ export default async function DashboardPage() {
           Welcome, {session.email ?? 'User'}
         </p>
       </div>
-      {/* ... เหมือนเดิม (ตัดเพื่อย่น) ... */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <div
-            key={i}
-            className="rounded-xl border bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800 hover:shadow-lg transition-all"
-          >
-            <div className="p-6 pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {stat.label}
-                  </p>
-                  <p className="text-2xl font-semibold mt-2 text-foreground">
-                    {stat.value}
-                  </p>
-                  <div className="flex items-center mt-2">
-                    <span
-                      className={`text-xs font-medium ${String(stat.trend).startsWith('+') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-                    >
-                      {stat.trend}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      vs last week
-                    </span>
+
+      {/* Weather + Stats */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        {/* Weather — Ratchaburi (TH) */}
+        <div className="xl:col-span-2">
+          <WeatherCard
+            title="Today • Thailand"
+            locationName="Ratchaburi"
+            latitude={13.525}
+            longitude={99.828}
+            timezone="Asia/Bangkok"
+            days={7}
+            revalidateSeconds={1800}
+          />
+        </div>
+
+        {/* Stats */}
+        <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {stats.map((stat, i) => (
+            <div
+              key={i}
+              className="rounded-xl border bg-card text-card-foreground dark:bg-gray-900/80 dark:border-gray-800 hover:shadow-lg transition-all"
+            >
+              <div className="p-6 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl font-semibold mt-2 text-foreground">
+                      {stat.value}
+                    </p>
+                    <div className="flex items-center mt-2">
+                      <span
+                        className={`text-xs font-medium ${String(stat.trend).startsWith('+') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                      >
+                        {stat.trend}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        vs last week
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div
-                  className={`p-3 rounded-xl bg-gradient-to-br ${stat.color}`}
-                >
-                  <stat.icon className="h-6 w-6 text-white" />
+                  <div
+                    className={`p-3 rounded-xl bg-gradient-to-br ${stat.color}`}
+                  >
+                    <stat.icon className="h-6 w-6 text-white" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </div>
+
+      {/* Day Overview */}
+      <div className="grid grid-cols-1">
+        <DayOverviewCard
+          title="Day Overview"
+          date={new Date()}
+          todos={todos}
+          events={events}
+        />
       </div>
 
       {/* Weekly */}
