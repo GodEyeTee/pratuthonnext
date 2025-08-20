@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 import {
   BedDouble,
+  Calculator,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +17,7 @@ import {
   Menu,
   Moon,
   Shield,
+  ShoppingBag,
   Sun,
   User,
   Users,
@@ -88,6 +90,20 @@ export default function Sidebar(props: SidebarProps) {
           href: '/bookings',
           icon: <Calendar size={18} />,
           roles: ['admin', 'support'],
+        },
+        {
+          id: 'meter',
+          label: 'จดมิเตอร์',
+          href: '/meter-readings',
+          icon: <Calculator size={18} />,
+          roles: ['admin', 'support'],
+        },
+        {
+          id: 'shop',
+          label: 'ร้านค้า',
+          href: '/shop',
+          icon: <ShoppingBag size={18} />,
+          roles: ['admin', 'support', 'user'],
         },
       ]),
     [role]
