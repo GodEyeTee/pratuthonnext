@@ -45,7 +45,7 @@ type SidebarProps = {
 
 export default function Sidebar(props: SidebarProps) {
   const pathname = usePathname();
-  const { user, role } = useAuth(); // ⭐ ใช้ role จาก useAuth
+  const { user, role } = useAuth();
   const { theme, toggleMode } = useTheme();
 
   // fallback states when not controlled
@@ -69,6 +69,14 @@ export default function Sidebar(props: SidebarProps) {
           href: '/dashboard',
           icon: <Home size={18} />,
           roles: ['admin', 'support'],
+        },
+        // ⭐ เพิ่มเมนูแดชบอร์ดของผู้ใช้
+        {
+          id: 'user-dashboard',
+          label: 'Dashboard',
+          href: '/dashboard/user',
+          icon: <Home size={18} />,
+          roles: ['user'],
         },
         {
           id: 'rooms',
